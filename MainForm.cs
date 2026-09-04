@@ -14,6 +14,7 @@ public sealed class MainForm : Form
     private readonly SettingsService _settingsService = new();
     private readonly StatusPollingService _pollingService = new();
     private readonly System.Windows.Forms.Timer _pollingTimer = new();
+    private readonly System.Windows.Forms.Timer _flashTimer = new() { Interval = 150 };
     private readonly Panel _header = new();
     private readonly Label _titleLabel = new();
     private readonly Button _settingsButton = new();
@@ -21,11 +22,13 @@ public sealed class MainForm : Form
     private readonly NotifyIcon _notifyIcon = new();
     private readonly ToolStripMenuItem _displayItemsMenu = new("표시 항목");
     private readonly Dictionary<string, StatusCard> _cards = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, decimal> _lastValues = new(StringComparer.Ordinal);
 
     private AppSettings _settings;
     private StatusData _statusData = new();
     private bool _isPolling;
     private bool _exitRequested;
+    private bool _flashPhase;
 
     public MainForm()
     {
@@ -48,6 +51,7 @@ public sealed class MainForm : Form
         ConfigurePolling();
 
         _pollingTimer.Tick += PollingTimer_Tick;
+        _flashTimer.Tick += FlashTimer_Tick;
         Shown += MainForm_Shown;
         FormClosing += MainForm_FormClosing;
         FormClosed += MainForm_FormClosed;
@@ -184,6 +188,9 @@ public sealed class MainForm : Form
         var padding = Scale(BasePadding, scale);
         var horizontal = IsHorizontalLayout();
 
+        _flashTimer.Stop();
+        _flashPhase = false;
+
         _cardsPanel.SuspendLayout();
         _cardsPanel.Controls.Clear();
         _cards.Clear();
@@ -205,7 +212,9 @@ public sealed class MainForm : Form
     {
         var cardWidth = Scale(BaseCardWidth, scale);
         var cardHeight = Scale(BaseCardHeight, scale);
-        var sidePadding = Scale(12, scale);
+        var sidePadding = Scale(10, scale);
+        var baseBackgroundColor = ParseColor(item.BackgroundColor, Color.DimGray);
+        var textColor = ParseColor(item.TextColor, Color.White);
 
         var panel = new Panel
         {
@@ -213,20 +222,18 @@ public sealed class MainForm : Form
             Margin = horizontal
                 ? new Padding(0, 0, gap, 0)
                 : new Padding(0, 0, 0, gap),
-            BackColor = ParseColor(item.BackgroundColor, Color.DimGray)
+            BackColor = baseBackgroundColor
         };
-
-        var textColor = ParseColor(item.TextColor, Color.White);
 
         var titleLabel = new Label
         {
-            Text = item.ValueName,
+            Text = GetDisplayName(item),
             ForeColor = textColor,
-            Font = new Font("Segoe UI", 11.5F * scale, FontStyle.Bold),
+            Font = new Font("Segoe UI", 10.5F * scale, FontStyle.Bold),
             TextAlign = ContentAlignment.MiddleLeft,
             AutoEllipsis = true,
-            Size = new Size(cardWidth - sidePadding * 2, Scale(28, scale)),
-            Location = new Point(sidePadding, Scale(7, scale))
+            Size = new Size(cardWidth - sidePadding * 2, Scale(24, scale)),
+            Location = new Point(sidePadding, Scale(4, scale))
         };
 
         var valueLabel = new Label
@@ -235,15 +242,15 @@ public sealed class MainForm : Form
             ForeColor = textColor,
             TextAlign = ContentAlignment.MiddleCenter,
             AutoEllipsis = true,
-            Font = new Font("Segoe UI", 27F * scale, FontStyle.Bold),
-            Size = new Size(cardWidth - sidePadding * 2, Scale(50, scale)),
-            Location = new Point(sidePadding, Scale(33, scale))
+            Font = new Font("Segoe UI", 42F * scale, FontStyle.Bold),
+            Size = new Size(cardWidth - sidePadding * 2, Scale(63, scale)),
+            Location = new Point(sidePadding, Scale(25, scale))
         };
 
         panel.Controls.Add(titleLabel);
         panel.Controls.Add(valueLabel);
 
-        return new StatusCard(panel, valueLabel);
+        return new StatusCard(panel, valueLabel, baseBackgroundColor);
     }
 
     private void RebuildTrayItems()
@@ -262,7 +269,7 @@ public sealed class MainForm : Form
         foreach (var item in _settings.Items)
         {
             var valueName = item.ValueName;
-            var menuItem = new ToolStripMenuItem(valueName)
+            var menuItem = new ToolStripMenuItem(GetDisplayName(item))
             {
                 CheckOnClick = true,
                 Checked = item.Visible
@@ -275,12 +282,82 @@ public sealed class MainForm : Form
 
     private void UpdateValues()
     {
+        var hasActiveFlash = false;
+
         foreach (var pair in _cards)
         {
-            pair.Value.ValueLabel.Text = _statusData.TryGetValue(pair.Key, out var value)
-                ? value.ToString("#,##0.##")
-                : "-";
+            var card = pair.Value;
+
+            if (!_statusData.TryGetValue(pair.Key, out var value))
+            {
+                card.ValueLabel.Text = "-";
+                card.CurrentValue = null;
+                card.IsFlashing = false;
+                card.Container.BackColor = card.BaseBackgroundColor;
+                continue;
+            }
+
+            card.ValueLabel.Text = FormatValue(value);
+            card.CurrentValue = value;
+
+            if (_lastValues.TryGetValue(pair.Key, out var previousValue) && previousValue != value)
+            {
+                card.IsFlashing = true;
+                card.FlashUntilUtc = DateTime.UtcNow.AddSeconds(1);
+                hasActiveFlash = true;
+            }
+
+            _lastValues[pair.Key] = value;
+            ApplyCardAppearance(card, false);
         }
+
+        if (hasActiveFlash && !_flashTimer.Enabled)
+        {
+            _flashPhase = false;
+            _flashTimer.Start();
+        }
+    }
+
+    private void FlashTimer_Tick(object? sender, EventArgs e)
+    {
+        _flashPhase = !_flashPhase;
+        var now = DateTime.UtcNow;
+        var hasActiveFlash = false;
+
+        foreach (var card in _cards.Values)
+        {
+            if (!card.IsFlashing)
+            {
+                continue;
+            }
+
+            if (now >= card.FlashUntilUtc)
+            {
+                card.IsFlashing = false;
+                ApplyCardAppearance(card, false);
+                continue;
+            }
+
+            hasActiveFlash = true;
+            ApplyCardAppearance(card, _flashPhase);
+        }
+
+        if (!hasActiveFlash)
+        {
+            _flashTimer.Stop();
+            _flashPhase = false;
+        }
+    }
+
+    private static void ApplyCardAppearance(StatusCard card, bool flashOn)
+    {
+        var normalColor = card.CurrentValue == 0
+            ? DarkenColor(card.BaseBackgroundColor, 0.82F)
+            : card.BaseBackgroundColor;
+
+        card.Container.BackColor = flashOn
+            ? BlendColor(normalColor, Color.White, 0.32F)
+            : normalColor;
     }
 
     private void UpdateWindowSize()
@@ -393,6 +470,8 @@ public sealed class MainForm : Form
     {
         _pollingTimer.Stop();
         _pollingTimer.Dispose();
+        _flashTimer.Stop();
+        _flashTimer.Dispose();
         _pollingService.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
@@ -413,6 +492,18 @@ public sealed class MainForm : Form
         return Math.Max(1, (int)Math.Round(value * scale));
     }
 
+    private static string GetDisplayName(MonitoringItem item)
+    {
+        return string.IsNullOrWhiteSpace(item.DisplayName) ? item.ValueName : item.DisplayName;
+    }
+
+    private static string FormatValue(decimal value)
+    {
+        return value == decimal.Truncate(value)
+            ? value.ToString("0")
+            : value.ToString("0.##");
+    }
+
     private static Color ParseColor(string value, Color fallback)
     {
         try
@@ -425,5 +516,38 @@ public sealed class MainForm : Form
         }
     }
 
-    private sealed record StatusCard(Panel Container, Label ValueLabel);
+    private static Color DarkenColor(Color color, float factor)
+    {
+        return Color.FromArgb(
+            color.A,
+            Math.Clamp((int)Math.Round(color.R * factor), 0, 255),
+            Math.Clamp((int)Math.Round(color.G * factor), 0, 255),
+            Math.Clamp((int)Math.Round(color.B * factor), 0, 255));
+    }
+
+    private static Color BlendColor(Color source, Color target, float amount)
+    {
+        return Color.FromArgb(
+            source.A,
+            Math.Clamp((int)Math.Round(source.R + (target.R - source.R) * amount), 0, 255),
+            Math.Clamp((int)Math.Round(source.G + (target.G - source.G) * amount), 0, 255),
+            Math.Clamp((int)Math.Round(source.B + (target.B - source.B) * amount), 0, 255));
+    }
+
+    private sealed class StatusCard
+    {
+        public StatusCard(Panel container, Label valueLabel, Color baseBackgroundColor)
+        {
+            Container = container;
+            ValueLabel = valueLabel;
+            BaseBackgroundColor = baseBackgroundColor;
+        }
+
+        public Panel Container { get; }
+        public Label ValueLabel { get; }
+        public Color BaseBackgroundColor { get; }
+        public decimal? CurrentValue { get; set; }
+        public bool IsFlashing { get; set; }
+        public DateTime FlashUntilUtc { get; set; }
+    }
 }
