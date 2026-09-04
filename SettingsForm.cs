@@ -9,6 +9,7 @@ public sealed class SettingsForm : Form
     private readonly NumericUpDown _pollingNumeric = new();
     private readonly ComboBox _layoutComboBox = new();
     private readonly NumericUpDown _scaleNumeric = new();
+    private readonly Button _programBackgroundButton = new();
     private readonly DataGridView _itemsGrid = new();
 
     public AppSettings ResultSettings { get; private set; }
@@ -23,7 +24,7 @@ public sealed class SettingsForm : Form
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(820, 590);
+        ClientSize = new Size(860, 590);
         Font = new Font("Segoe UI", 9F);
 
         BuildUi();
@@ -98,7 +99,14 @@ public sealed class SettingsForm : Form
         _scaleNumeric.Increment = 10;
         _scaleNumeric.Width = 70;
         optionsPanel.Controls.Add(_scaleNumeric);
-        optionsPanel.Controls.Add(CreateOptionLabel("%", 4, 5, 0));
+        optionsPanel.Controls.Add(CreateOptionLabel("%", 4, 5, 18));
+
+        optionsPanel.Controls.Add(CreateOptionLabel("프로그램 배경", 4, 5, 6));
+        _programBackgroundButton.Width = 90;
+        _programBackgroundButton.Height = 25;
+        _programBackgroundButton.FlatStyle = FlatStyle.Popup;
+        _programBackgroundButton.Click += (_, _) => SelectProgramBackgroundColor();
+        optionsPanel.Controls.Add(_programBackgroundButton);
         root.Controls.Add(optionsPanel, 0, 4);
 
         root.Controls.Add(new Label
@@ -240,6 +248,11 @@ public sealed class SettingsForm : Form
         _layoutComboBox.SelectedIndex = string.Equals(settings.Layout, "Horizontal", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         _scaleNumeric.Value = Math.Clamp(settings.ScalePercent, 50, 200);
 
+        var backgroundColor = string.IsNullOrWhiteSpace(settings.ProgramBackgroundColor)
+            ? "#FFFFFF"
+            : settings.ProgramBackgroundColor;
+        ApplyProgramBackgroundButtonStyle(backgroundColor);
+
         _itemsGrid.Rows.Clear();
         foreach (var item in settings.Items ?? [])
         {
@@ -280,6 +293,34 @@ public sealed class SettingsForm : Form
         {
             _itemsGrid.Rows.Remove(_itemsGrid.CurrentRow);
         }
+    }
+
+    private void SelectProgramBackgroundColor()
+    {
+        var currentHex = string.IsNullOrWhiteSpace(_programBackgroundButton.Text)
+            ? "#FFFFFF"
+            : _programBackgroundButton.Text;
+
+        using var dialog = new ColorDialog
+        {
+            FullOpen = true,
+            Color = ParseColor(currentHex, Color.White)
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        ApplyProgramBackgroundButtonStyle(ToHex(dialog.Color));
+    }
+
+    private void ApplyProgramBackgroundButtonStyle(string hex)
+    {
+        var color = ParseColor(hex, Color.White);
+        _programBackgroundButton.Text = ToHex(color);
+        _programBackgroundButton.BackColor = color;
+        _programBackgroundButton.ForeColor = GetContrastingColor(color);
     }
 
     private void ItemsGrid_CellContentClick(object? sender, DataGridViewCellEventArgs e)
@@ -367,6 +408,9 @@ public sealed class SettingsForm : Form
         ResultSettings = new AppSettings
         {
             ProgramName = GetProgramName(_programNameTextBox.Text),
+            ProgramBackgroundColor = string.IsNullOrWhiteSpace(_programBackgroundButton.Text)
+                ? "#FFFFFF"
+                : _programBackgroundButton.Text,
             DataUrl = _urlTextBox.Text.Trim(),
             PollingSeconds = (int)_pollingNumeric.Value,
             Layout = _layoutComboBox.SelectedIndex == 1 ? "Horizontal" : "Vertical",
@@ -383,6 +427,9 @@ public sealed class SettingsForm : Form
         return new AppSettings
         {
             ProgramName = GetProgramName(source.ProgramName),
+            ProgramBackgroundColor = string.IsNullOrWhiteSpace(source.ProgramBackgroundColor)
+                ? "#FFFFFF"
+                : source.ProgramBackgroundColor,
             DataUrl = source.DataUrl,
             PollingSeconds = source.PollingSeconds,
             Layout = source.Layout,
