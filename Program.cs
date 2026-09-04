@@ -26,6 +26,9 @@ internal static class Program
             return;
         }
 
+        var startupSettings = new SettingsService().Load();
+        StartupService.Apply(startupSettings.StartWithWindows);
+
         Application.Run(new MainForm());
     }
 }

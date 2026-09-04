@@ -13,6 +13,7 @@ public sealed class AppSettings
     public bool DimWhenInactive { get; set; } = false;
     public int InactiveOpacityPercent { get; set; } = 75;
     public bool HideTitleBarWhenInactive { get; set; } = false;
+    public bool StartWithWindows { get; set; } = false;
 
     public List<MonitoringItem> Items { get; set; } =
     [

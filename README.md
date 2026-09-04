@@ -28,6 +28,7 @@ URL이 JSON 숫자 값을 반환하기만 하면 필요한 항목을 골라 카�
 - 값이 이전 값과 달라지면 약 1초간 점멸
 - 항상 위(TopMost) 표시
 - 작업표시줄에는 표시하지 않고 시스템 트레이에만 상주
+- Windows 시작 시 자동 실행 ON/OFF 설정
 - 설정은 트레이 메뉴에서 접근
 - 창을 닫으면 트레이로 숨김
 - 중복 실행 차단
@@ -74,6 +75,7 @@ GitHub Releases에서 최신 Windows x64 배포본을 받을 수 있습니다.
   "DimWhenInactive": false,
   "InactiveOpacityPercent": 75,
   "HideTitleBarWhenInactive": false,
+  "StartWithWindows": false,
   "Items": [
     {
       "ValueName": "fire",

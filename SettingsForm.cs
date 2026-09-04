@@ -1,4 +1,5 @@
 using MiniWebCounter.Models;
+using MiniWebCounter.Services;
 
 namespace MiniWebCounter;
 
@@ -13,6 +14,7 @@ public sealed class SettingsForm : Form
     private readonly CheckBox _dimWhenInactiveCheckBox = new();
     private readonly NumericUpDown _inactiveOpacityNumeric = new();
     private readonly CheckBox _hideTitleBarWhenInactiveCheckBox = new();
+    private readonly CheckBox _startWithWindowsCheckBox = new();
     private readonly DataGridView _itemsGrid = new();
 
     public AppSettings ResultSettings { get; private set; }
@@ -80,8 +82,12 @@ public sealed class SettingsForm : Form
         optionsPanel.Controls.Add(CreateOptionLabel("%", 3, 5, 8));
         _hideTitleBarWhenInactiveCheckBox.Text = "비활성 시 타이틀바 숨김";
         _hideTitleBarWhenInactiveCheckBox.AutoSize = true;
-        _hideTitleBarWhenInactiveCheckBox.Margin = new Padding(4, 3, 0, 0);
+        _hideTitleBarWhenInactiveCheckBox.Margin = new Padding(4, 3, 8, 0);
         optionsPanel.Controls.Add(_hideTitleBarWhenInactiveCheckBox);
+        _startWithWindowsCheckBox.Text = "Windows 시작 시 자동 실행";
+        _startWithWindowsCheckBox.AutoSize = true;
+        _startWithWindowsCheckBox.Margin = new Padding(4, 3, 0, 0);
+        optionsPanel.Controls.Add(_startWithWindowsCheckBox);
         root.Controls.Add(optionsPanel, 0, 4);
 
         root.Controls.Add(new Label { Text = "색상은 #RRGGBB 형식으로 직접 입력합니다. 알림음은 WAV 또는 MP3 파일을 사용할 수 있습니다.", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 5);
@@ -149,6 +155,7 @@ public sealed class SettingsForm : Form
         _dimWhenInactiveCheckBox.Checked = settings.DimWhenInactive;
         _inactiveOpacityNumeric.Value = Math.Clamp(settings.InactiveOpacityPercent, 20, 100);
         _hideTitleBarWhenInactiveCheckBox.Checked = settings.HideTitleBarWhenInactive;
+        _startWithWindowsCheckBox.Checked = settings.StartWithWindows;
         _itemsGrid.Rows.Clear();
         foreach (var item in settings.Items ?? []) AddItemRow(item);
     }
@@ -235,8 +242,10 @@ public sealed class SettingsForm : Form
             DimWhenInactive = _dimWhenInactiveCheckBox.Checked,
             InactiveOpacityPercent = (int)_inactiveOpacityNumeric.Value,
             HideTitleBarWhenInactive = _hideTitleBarWhenInactiveCheckBox.Checked,
+            StartWithWindows = _startWithWindowsCheckBox.Checked,
             Items = items
         };
+        StartupService.Apply(ResultSettings.StartWithWindows);
         DialogResult = DialogResult.OK;
         Close();
     }
@@ -252,6 +261,7 @@ public sealed class SettingsForm : Form
         DimWhenInactive = source.DimWhenInactive,
         InactiveOpacityPercent = source.InactiveOpacityPercent,
         HideTitleBarWhenInactive = source.HideTitleBarWhenInactive,
+        StartWithWindows = source.StartWithWindows,
         Items = (source.Items ?? []).Select(item => new MonitoringItem
         {
             ValueName = item.ValueName,
