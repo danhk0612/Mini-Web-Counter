@@ -7,6 +7,10 @@ namespace MiniWebCounter;
 
 public sealed class MainForm : Form
 {
+    private const int WmMouseActivate = 0x0021;
+    private const int MaNoActivate = 3;
+    private const string NoActivateActionTag = "NoActivateAction";
+
     private const int BaseCardWidth = 180;
     private const int BaseCardHeight = 96;
     private const int BaseCardGap = 8;
@@ -319,9 +323,47 @@ if (hasSound)
             Location = new Point(x, y),
             Size = new Size(size, size),
             BackColor = Color.Transparent,
-            TabStop = false
+            TabStop = false,
+            Tag = NoActivateActionTag
         };
     }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == WmMouseActivate && IsNoActivateActionUnderCursor())
+        {
+            m.Result = (IntPtr)MaNoActivate;
+            return;
+        }
+
+        base.WndProc(ref m);
+    }
+
+    private bool IsNoActivateActionUnderCursor()
+    {
+        var screenPoint = Cursor.Position;
+        var windowHandle = WindowFromPoint(screenPoint);
+        if (windowHandle == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        var control = Control.FromHandle(windowHandle);
+        while (control is not null && control != this)
+        {
+            if (string.Equals(control.Tag as string, NoActivateActionTag, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            control = control.Parent;
+        }
+
+        return false;
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr WindowFromPoint(Point point);
 
     private static void DrawLinkIcon(Graphics graphics, Rectangle bounds, Color color, float scale)
     {
