@@ -6,5 +6,7 @@ public sealed class MonitoringItem
     public string DisplayName { get; set; } = string.Empty;
     public string BackgroundColor { get; set; } = "#666666";
     public string TextColor { get; set; } = "#FFFFFF";
+    public string LinkUrl { get; set; } = string.Empty;
+    public string SoundFile { get; set; } = string.Empty;
     public bool Visible { get; set; } = true;
 }
