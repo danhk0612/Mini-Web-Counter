@@ -22,7 +22,7 @@ public sealed class SettingsForm : Form
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(720, 540);
+        ClientSize = new Size(820, 540);
         Font = new Font("Segoe UI", 9F);
 
         BuildUi();
@@ -90,7 +90,7 @@ public sealed class SettingsForm : Form
 
         root.Controls.Add(new Label
         {
-            Text = "표시 항목  ·  색상 칸을 클릭하면 색을 선택할 수 있습니다.",
+            Text = "표시 항목  ·  항목 이름은 화면 표시명, 값 이름은 JSON 키입니다.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft
         }, 0, 3);
@@ -175,17 +175,24 @@ public sealed class SettingsForm : Form
 
         _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
+            Name = "DisplayName",
+            HeaderText = "항목 이름",
+            Width = 150
+        });
+
+        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
+        {
             Name = "ValueName",
             HeaderText = "값 이름 (JSON 키)",
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            MinimumWidth = 220
+            MinimumWidth = 180
         });
 
         _itemsGrid.Columns.Add(new DataGridViewButtonColumn
         {
             Name = "BackgroundColor",
             HeaderText = "배경 색",
-            Width = 120,
+            Width = 115,
             FlatStyle = FlatStyle.Popup,
             UseColumnTextForButtonValue = false
         });
@@ -194,7 +201,7 @@ public sealed class SettingsForm : Form
         {
             Name = "TextColor",
             HeaderText = "글자 색",
-            Width = 120,
+            Width = 115,
             FlatStyle = FlatStyle.Popup,
             UseColumnTextForButtonValue = false
         });
@@ -238,12 +245,17 @@ public sealed class SettingsForm : Form
         while (_itemsGrid.Rows.Cast<DataGridViewRow>()
             .Any(row => string.Equals(Convert.ToString(row.Cells["ValueName"].Value), valueName, StringComparison.Ordinal)));
 
-        AddItemRow(new MonitoringItem { ValueName = valueName });
+        AddItemRow(new MonitoringItem
+        {
+            ValueName = valueName,
+            DisplayName = valueName
+        });
     }
 
     private void AddItemRow(MonitoringItem item)
     {
-        var rowIndex = _itemsGrid.Rows.Add(item.Visible, item.ValueName, item.BackgroundColor, item.TextColor);
+        var displayName = string.IsNullOrWhiteSpace(item.DisplayName) ? item.ValueName : item.DisplayName;
+        var rowIndex = _itemsGrid.Rows.Add(item.Visible, displayName, item.ValueName, item.BackgroundColor, item.TextColor);
         ApplyColorCellStyle(rowIndex, "BackgroundColor", item.BackgroundColor);
         ApplyColorCellStyle(rowIndex, "TextColor", item.TextColor);
     }
@@ -322,9 +334,16 @@ public sealed class SettingsForm : Form
                 return;
             }
 
+            var displayName = (Convert.ToString(row.Cells["DisplayName"].Value) ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(displayName))
+            {
+                displayName = valueName;
+            }
+
             items.Add(new MonitoringItem
             {
                 Visible = Convert.ToBoolean(row.Cells["Visible"].Value ?? true),
+                DisplayName = displayName,
                 ValueName = valueName,
                 BackgroundColor = Convert.ToString(row.Cells["BackgroundColor"].Value) ?? "#666666",
                 TextColor = Convert.ToString(row.Cells["TextColor"].Value) ?? "#FFFFFF"
@@ -355,6 +374,7 @@ public sealed class SettingsForm : Form
             Items = (source.Items ?? []).Select(item => new MonitoringItem
             {
                 ValueName = item.ValueName,
+                DisplayName = string.IsNullOrWhiteSpace(item.DisplayName) ? item.ValueName : item.DisplayName,
                 BackgroundColor = item.BackgroundColor,
                 TextColor = item.TextColor,
                 Visible = item.Visible
