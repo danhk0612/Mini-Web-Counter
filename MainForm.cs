@@ -5,18 +5,22 @@ namespace JCMS_Mini_Monitoring;
 
 public sealed class MainForm : Form
 {
-    private const int WindowWidth = 280;
-    private const int HeaderHeight = 42;
-    private const int CardHeight = 92;
-    private const int CardGap = 8;
+    private const int BaseCardWidth = 260;
+    private const int BaseCardHeight = 92;
+    private const int BaseCardGap = 8;
+    private const int BasePadding = 10;
+    private const int BaseHeaderHeight = 42;
 
     private readonly SettingsService _settingsService = new();
     private readonly StatusPollingService _pollingService = new();
     private readonly System.Windows.Forms.Timer _pollingTimer = new();
+    private readonly Panel _header = new();
+    private readonly Label _titleLabel = new();
+    private readonly Button _settingsButton = new();
     private readonly FlowLayoutPanel _cardsPanel = new();
     private readonly NotifyIcon _notifyIcon = new();
-    private readonly Dictionary<string, StatusCard> _cards = new();
-    private readonly Dictionary<string, ToolStripMenuItem> _trayStatusItems = new();
+    private readonly ToolStripMenuItem _displayItemsMenu = new("표시 항목");
+    private readonly Dictionary<string, StatusCard> _cards = new(StringComparer.Ordinal);
 
     private AppSettings _settings;
     private StatusData _statusData = new();
@@ -33,7 +37,7 @@ public sealed class MainForm : Form
         MaximizeBox = false;
         TopMost = true;
         ShowInTaskbar = true;
-        ClientSize = new Size(WindowWidth, 560);
+        ClientSize = new Size(280, 560);
         BackColor = Color.FromArgb(242, 244, 247);
         Font = new Font("Segoe UI", 9F);
         Icon = SystemIcons.Application;
@@ -51,112 +55,38 @@ public sealed class MainForm : Form
 
     private void BuildUi()
     {
-        var header = new Panel
-        {
-            Dock = DockStyle.Top,
-            Height = HeaderHeight,
-            BackColor = Color.White
-        };
+        _header.Dock = DockStyle.Top;
+        _header.BackColor = Color.White;
 
-        var titleLabel = new Label
-        {
-            Text = "상태 모니터",
-            AutoSize = true,
-            Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-            Location = new Point(12, 12)
-        };
-        header.Controls.Add(titleLabel);
+        _titleLabel.Text = "상태 모니터";
+        _titleLabel.AutoSize = true;
+        _titleLabel.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _header.Controls.Add(_titleLabel);
 
-        var settingsButton = new Button
-        {
-            Text = "설정",
-            FlatStyle = FlatStyle.Flat,
-            Size = new Size(58, 27),
-            Location = new Point(WindowWidth - 70, 7),
-            Anchor = AnchorStyles.Top | AnchorStyles.Right
-        };
-        settingsButton.FlatAppearance.BorderColor = Color.FromArgb(210, 214, 220);
-        settingsButton.Click += async (_, _) => await OpenSettingsAsync();
-        header.Controls.Add(settingsButton);
+        _settingsButton.Text = "설정";
+        _settingsButton.FlatStyle = FlatStyle.Flat;
+        _settingsButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _settingsButton.FlatAppearance.BorderColor = Color.FromArgb(210, 214, 220);
+        _settingsButton.Click += async (_, _) => await OpenSettingsAsync();
+        _header.Controls.Add(_settingsButton);
 
         _cardsPanel.Dock = DockStyle.Fill;
-        _cardsPanel.FlowDirection = FlowDirection.TopDown;
         _cardsPanel.WrapContents = false;
         _cardsPanel.AutoScroll = false;
-        _cardsPanel.Padding = new Padding(10, 10, 10, 0);
         _cardsPanel.BackColor = BackColor;
 
         Controls.Add(_cardsPanel);
-        Controls.Add(header);
-
-        _cards["fire"] = CreateCard("화재", "●", Color.FromArgb(208, 57, 57));
-        _cards["facility"] = CreateCard("설비", "⚙", Color.FromArgb(49, 142, 90));
-        _cards["fault"] = CreateCard("고장", "▲", Color.FromArgb(217, 143, 42));
-        _cards["block"] = CreateCard("차단", "⊘", Color.FromArgb(47, 111, 191));
-        _cards["spare"] = CreateCard("예비", "○", Color.FromArgb(105, 113, 124));
-
-        foreach (var card in _cards.Values)
-        {
-            _cardsPanel.Controls.Add(card.Container);
-        }
-    }
-
-    private StatusCard CreateCard(string title, string symbol, Color color)
-    {
-        var panel = new Panel
-        {
-            Size = new Size(WindowWidth - 20, CardHeight),
-            Margin = new Padding(0, 0, 0, CardGap),
-            BackColor = color
-        };
-
-        var titleLabel = new Label
-        {
-            Text = title,
-            ForeColor = Color.White,
-            AutoSize = true,
-            Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
-            Location = new Point(12, 10)
-        };
-
-        var iconLabel = new Label
-        {
-            Text = symbol,
-            ForeColor = Color.White,
-            TextAlign = ContentAlignment.MiddleCenter,
-            Font = new Font("Segoe UI Symbol", 15F, FontStyle.Bold),
-            Size = new Size(36, 28),
-            Location = new Point(panel.Width - 48, 6),
-            Anchor = AnchorStyles.Top | AnchorStyles.Right
-        };
-
-        var valueLabel = new Label
-        {
-            Text = "0",
-            ForeColor = Color.White,
-            TextAlign = ContentAlignment.MiddleCenter,
-            Font = new Font("Segoe UI", 26F, FontStyle.Bold),
-            Size = new Size(panel.Width - 24, 48),
-            Location = new Point(12, 35),
-            Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
-        };
-
-        panel.Controls.Add(titleLabel);
-        panel.Controls.Add(iconLabel);
-        panel.Controls.Add(valueLabel);
-
-        return new StatusCard(panel, valueLabel);
+        Controls.Add(_header);
     }
 
     private void BuildTrayMenu()
     {
         var menu = new ContextMenuStrip();
 
-        var titleItem = new ToolStripMenuItem("상태 모니터")
+        menu.Items.Add(new ToolStripMenuItem("상태 모니터")
         {
             Enabled = false
-        };
-        menu.Items.Add(titleItem);
+        });
         menu.Items.Add(new ToolStripSeparator());
 
         var showItem = new ToolStripMenuItem("화면 표시");
@@ -167,14 +97,7 @@ public sealed class MainForm : Form
         settingsItem.Click += async (_, _) => await OpenSettingsAsync();
         menu.Items.Add(settingsItem);
 
-        var displayItems = new ToolStripMenuItem("표시 항목");
-        AddTrayStatusItem(displayItems, "fire", "화재");
-        AddTrayStatusItem(displayItems, "facility", "설비");
-        AddTrayStatusItem(displayItems, "fault", "고장");
-        AddTrayStatusItem(displayItems, "block", "차단");
-        AddTrayStatusItem(displayItems, "spare", "예비");
-        menu.Items.Add(displayItems);
-
+        menu.Items.Add(_displayItemsMenu);
         menu.Items.Add(new ToolStripSeparator());
 
         var exitItem = new ToolStripMenuItem("종료");
@@ -186,17 +109,6 @@ public sealed class MainForm : Form
         _notifyIcon.ContextMenuStrip = menu;
         _notifyIcon.Visible = true;
         _notifyIcon.DoubleClick += (_, _) => ShowMainWindow();
-    }
-
-    private void AddTrayStatusItem(ToolStripMenuItem parent, string key, string text)
-    {
-        var item = new ToolStripMenuItem(text)
-        {
-            CheckOnClick = true
-        };
-        item.Click += (_, _) => SetStatusVisibility(key, item.Checked);
-        parent.DropDownItems.Add(item);
-        _trayStatusItems[key] = item;
     }
 
     private async Task OpenSettingsAsync()
@@ -214,71 +126,179 @@ public sealed class MainForm : Form
         await RefreshStatusAsync();
     }
 
-    private void SetStatusVisibility(string key, bool visible)
+    private void SetStatusVisibility(string valueName, bool visible)
     {
-        switch (key)
+        var item = _settings.Items.FirstOrDefault(candidate =>
+            string.Equals(candidate.ValueName, valueName, StringComparison.Ordinal));
+
+        if (item is null)
         {
-            case "fire":
-                _settings.ShowFire = visible;
-                break;
-            case "facility":
-                _settings.ShowFacility = visible;
-                break;
-            case "fault":
-                _settings.ShowFault = visible;
-                break;
-            case "block":
-                _settings.ShowBlock = visible;
-                break;
-            case "spare":
-                _settings.ShowSpare = visible;
-                break;
+            return;
         }
 
+        item.Visible = visible;
         _settingsService.Save(_settings);
         ApplySettingsToUi();
     }
 
     private void ApplySettingsToUi()
     {
-        SetCardState("fire", _settings.ShowFire);
-        SetCardState("facility", _settings.ShowFacility);
-        SetCardState("fault", _settings.ShowFault);
-        SetCardState("block", _settings.ShowBlock);
-        SetCardState("spare", _settings.ShowSpare);
+        _settings.Items ??= [];
+        _settings.ScalePercent = Math.Clamp(_settings.ScalePercent, 50, 200);
+
+        ApplyScaleToHeader();
+        RebuildCards();
+        RebuildTrayItems();
         UpdateValues();
-        UpdateWindowHeight();
+        UpdateWindowSize();
     }
 
-    private void SetCardState(string key, bool visible)
+    private void ApplyScaleToHeader()
     {
-        _cards[key].Container.Visible = visible;
-        _trayStatusItems[key].Checked = visible;
+        var scale = GetScale();
+        var headerHeight = Scale(BaseHeaderHeight, scale);
+
+        _header.Height = headerHeight;
+        _titleLabel.Font = new Font("Segoe UI", 10F * scale, FontStyle.Bold);
+        _titleLabel.Location = new Point(Scale(12, scale), Scale(11, scale));
+
+        _settingsButton.Size = new Size(Scale(58, scale), Scale(27, scale));
+        _settingsButton.Location = new Point(ClientSize.Width - _settingsButton.Width - Scale(12, scale), Scale(7, scale));
+        _settingsButton.Font = new Font("Segoe UI", 9F * scale);
+    }
+
+    private void RebuildCards()
+    {
+        var scale = GetScale();
+        var gap = Scale(BaseCardGap, scale);
+        var padding = Scale(BasePadding, scale);
+        var horizontal = IsHorizontalLayout();
+
+        _cardsPanel.SuspendLayout();
+        _cardsPanel.Controls.Clear();
+        _cards.Clear();
+
+        _cardsPanel.FlowDirection = horizontal ? FlowDirection.LeftToRight : FlowDirection.TopDown;
+        _cardsPanel.Padding = new Padding(padding);
+
+        foreach (var item in _settings.Items.Where(item => item.Visible))
+        {
+            var card = CreateCard(item, scale, horizontal, gap);
+            _cards[item.ValueName] = card;
+            _cardsPanel.Controls.Add(card.Container);
+        }
+
+        _cardsPanel.ResumeLayout();
+    }
+
+    private StatusCard CreateCard(MonitoringItem item, float scale, bool horizontal, int gap)
+    {
+        var cardWidth = Scale(BaseCardWidth, scale);
+        var cardHeight = Scale(BaseCardHeight, scale);
+        var sidePadding = Scale(12, scale);
+
+        var panel = new Panel
+        {
+            Size = new Size(cardWidth, cardHeight),
+            Margin = horizontal
+                ? new Padding(0, 0, gap, 0)
+                : new Padding(0, 0, 0, gap),
+            BackColor = ParseColor(item.BackgroundColor, Color.DimGray)
+        };
+
+        var textColor = ParseColor(item.TextColor, Color.White);
+
+        var titleLabel = new Label
+        {
+            Text = item.ValueName,
+            ForeColor = textColor,
+            Font = new Font("Segoe UI", 11.5F * scale, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true,
+            Size = new Size(cardWidth - sidePadding * 2, Scale(28, scale)),
+            Location = new Point(sidePadding, Scale(7, scale))
+        };
+
+        var valueLabel = new Label
+        {
+            Text = "-",
+            ForeColor = textColor,
+            TextAlign = ContentAlignment.MiddleCenter,
+            AutoEllipsis = true,
+            Font = new Font("Segoe UI", 27F * scale, FontStyle.Bold),
+            Size = new Size(cardWidth - sidePadding * 2, Scale(50, scale)),
+            Location = new Point(sidePadding, Scale(33, scale))
+        };
+
+        panel.Controls.Add(titleLabel);
+        panel.Controls.Add(valueLabel);
+
+        return new StatusCard(panel, valueLabel);
+    }
+
+    private void RebuildTrayItems()
+    {
+        _displayItemsMenu.DropDownItems.Clear();
+
+        if (_settings.Items.Count == 0)
+        {
+            _displayItemsMenu.DropDownItems.Add(new ToolStripMenuItem("(항목 없음)")
+            {
+                Enabled = false
+            });
+            return;
+        }
+
+        foreach (var item in _settings.Items)
+        {
+            var valueName = item.ValueName;
+            var menuItem = new ToolStripMenuItem(valueName)
+            {
+                CheckOnClick = true,
+                Checked = item.Visible
+            };
+
+            menuItem.Click += (_, _) => SetStatusVisibility(valueName, menuItem.Checked);
+            _displayItemsMenu.DropDownItems.Add(menuItem);
+        }
     }
 
     private void UpdateValues()
     {
-        _cards["fire"].ValueLabel.Text = _statusData.Fire.ToString("N0");
-        _cards["facility"].ValueLabel.Text = _statusData.Facility.ToString("N0");
-        _cards["fault"].ValueLabel.Text = _statusData.Fault.ToString("N0");
-        _cards["block"].ValueLabel.Text = _statusData.Block.ToString("N0");
-        _cards["spare"].ValueLabel.Text = _statusData.Spare.ToString("N0");
+        foreach (var pair in _cards)
+        {
+            pair.Value.ValueLabel.Text = _statusData.TryGetValue(pair.Key, out var value)
+                ? value.ToString("#,##0.##")
+                : "-";
+        }
     }
 
-    private void UpdateWindowHeight()
+    private void UpdateWindowSize()
     {
-        var visibleCount = 0;
-        if (_settings.ShowFire) visibleCount++;
-        if (_settings.ShowFacility) visibleCount++;
-        if (_settings.ShowFault) visibleCount++;
-        if (_settings.ShowBlock) visibleCount++;
-        if (_settings.ShowSpare) visibleCount++;
+        var scale = GetScale();
+        var cardWidth = Scale(BaseCardWidth, scale);
+        var cardHeight = Scale(BaseCardHeight, scale);
+        var gap = Scale(BaseCardGap, scale);
+        var padding = Scale(BasePadding, scale);
+        var headerHeight = Scale(BaseHeaderHeight, scale);
+        var visibleCount = _settings.Items.Count(item => item.Visible);
 
-        var cardAreaHeight = visibleCount == 0
-            ? 20
-            : 10 + visibleCount * (CardHeight + CardGap);
+        int contentWidth;
+        int contentHeight;
 
-        ClientSize = new Size(WindowWidth, HeaderHeight + cardAreaHeight);
+        if (IsHorizontalLayout())
+        {
+            contentWidth = padding * 2 + (visibleCount == 0 ? cardWidth : visibleCount * (cardWidth + gap));
+            contentHeight = padding * 2 + (visibleCount == 0 ? 0 : cardHeight);
+        }
+        else
+        {
+            contentWidth = padding * 2 + cardWidth;
+            contentHeight = padding * 2 + visibleCount * (cardHeight + gap);
+        }
+
+        ClientSize = new Size(contentWidth, headerHeight + contentHeight);
+        _settingsButton.Location = new Point(ClientSize.Width - _settingsButton.Width - Scale(12, scale), Scale(7, scale));
     }
 
     private void ConfigurePolling()
@@ -366,6 +386,33 @@ public sealed class MainForm : Form
         _pollingService.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
+    }
+
+    private bool IsHorizontalLayout()
+    {
+        return string.Equals(_settings.Layout, "Horizontal", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private float GetScale()
+    {
+        return Math.Clamp(_settings.ScalePercent, 50, 200) / 100F;
+    }
+
+    private static int Scale(int value, float scale)
+    {
+        return Math.Max(1, (int)Math.Round(value * scale));
+    }
+
+    private static Color ParseColor(string value, Color fallback)
+    {
+        try
+        {
+            return ColorTranslator.FromHtml(value);
+        }
+        catch
+        {
+            return fallback;
+        }
     }
 
     private sealed record StatusCard(Panel Container, Label ValueLabel);
