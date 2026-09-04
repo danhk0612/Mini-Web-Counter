@@ -2,7 +2,7 @@ namespace JCMS_Mini_Monitoring.Models;
 
 public sealed class AppSettings
 {
-    public const string DefaultProgramName = "JCMS 미니 카운터";
+    public const string DefaultProgramName = "Mini Web Counter";
 
     public string ProgramName { get; set; } = DefaultProgramName;
     public string ProgramBackgroundColor { get; set; } = "#FFFFFF";
