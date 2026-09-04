@@ -10,7 +10,9 @@ public sealed class SettingsService
         WriteIndented = true
     };
 
-    private readonly string _settingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+    private readonly string _settingsPath = Path.Combine(
+        Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath) ?? AppContext.BaseDirectory,
+        "appsettings.json");
 
     public AppSettings Load()
     {
