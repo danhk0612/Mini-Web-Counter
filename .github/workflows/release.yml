@@ -1,11 +1,6 @@
 name: Build and Release v1.0.2
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/release.yml'
   workflow_dispatch:
 
 permissions:
