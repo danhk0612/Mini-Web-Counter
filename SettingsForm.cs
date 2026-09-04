@@ -6,10 +6,10 @@ public sealed class SettingsForm : Form
 {
     private readonly TextBox _programNameTextBox = new();
     private readonly TextBox _urlTextBox = new();
+    private readonly TextBox _programBackgroundTextBox = new();
     private readonly NumericUpDown _pollingNumeric = new();
     private readonly ComboBox _layoutComboBox = new();
     private readonly NumericUpDown _scaleNumeric = new();
-    private readonly Button _programBackgroundButton = new();
     private readonly DataGridView _itemsGrid = new();
 
     public AppSettings ResultSettings { get; private set; }
@@ -24,7 +24,7 @@ public sealed class SettingsForm : Form
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(1120, 620);
+        ClientSize = new Size(1160, 620);
         Font = new Font("Segoe UI", 9F);
 
         BuildUi();
@@ -102,16 +102,13 @@ public sealed class SettingsForm : Form
         optionsPanel.Controls.Add(CreateOptionLabel("%", 4, 5, 18));
 
         optionsPanel.Controls.Add(CreateOptionLabel("프로그램 배경", 4, 5, 6));
-        _programBackgroundButton.Width = 90;
-        _programBackgroundButton.Height = 25;
-        _programBackgroundButton.FlatStyle = FlatStyle.Popup;
-        _programBackgroundButton.Click += (_, _) => SelectProgramBackgroundColor();
-        optionsPanel.Controls.Add(_programBackgroundButton);
+        _programBackgroundTextBox.Width = 95;
+        optionsPanel.Controls.Add(_programBackgroundTextBox);
         root.Controls.Add(optionsPanel, 0, 4);
 
         root.Controls.Add(new Label
         {
-            Text = "표시 항목  ·  링크 URL은 우상단 링크 아이콘, 알림음은 값이 0이 아닐 때 재생됩니다. 알림음은 WAV 파일을 사용합니다.",
+            Text = "색상은 #RRGGBB 형식으로 직접 입력합니다. 알림음은 WAV 또는 MP3 파일을 사용할 수 있습니다.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft
         }, 0, 5);
@@ -198,32 +195,28 @@ public sealed class SettingsForm : Form
         {
             Name = "DisplayName",
             HeaderText = "항목 이름",
-            Width = 120
+            Width = 115
         });
 
         _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "ValueName",
             HeaderText = "값 이름",
-            Width = 120
+            Width = 105
         });
 
-        _itemsGrid.Columns.Add(new DataGridViewButtonColumn
+        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "BackgroundColor",
             HeaderText = "배경 색",
-            Width = 90,
-            FlatStyle = FlatStyle.Popup,
-            UseColumnTextForButtonValue = false
+            Width = 90
         });
 
-        _itemsGrid.Columns.Add(new DataGridViewButtonColumn
+        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "TextColor",
             HeaderText = "글자 색",
-            Width = 90,
-            FlatStyle = FlatStyle.Popup,
-            UseColumnTextForButtonValue = false
+            Width = 90
         });
 
         _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
@@ -237,8 +230,8 @@ public sealed class SettingsForm : Form
         _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "SoundFile",
-            HeaderText = "알림음 WAV 파일",
-            Width = 220
+            HeaderText = "알림음 파일",
+            Width = 250
         });
 
         _itemsGrid.Columns.Add(new DataGridViewButtonColumn
@@ -271,11 +264,9 @@ public sealed class SettingsForm : Form
         _pollingNumeric.Value = Math.Clamp(settings.PollingSeconds, 1, 3600);
         _layoutComboBox.SelectedIndex = string.Equals(settings.Layout, "Horizontal", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         _scaleNumeric.Value = Math.Clamp(settings.ScalePercent, 50, 200);
-
-        var backgroundColor = string.IsNullOrWhiteSpace(settings.ProgramBackgroundColor)
+        _programBackgroundTextBox.Text = string.IsNullOrWhiteSpace(settings.ProgramBackgroundColor)
             ? "#FFFFFF"
             : settings.ProgramBackgroundColor;
-        ApplyProgramBackgroundButtonStyle(backgroundColor);
 
         _itemsGrid.Rows.Clear();
         foreach (var item in settings.Items ?? [])
@@ -306,7 +297,7 @@ public sealed class SettingsForm : Form
     private void AddItemRow(MonitoringItem item)
     {
         var displayName = string.IsNullOrWhiteSpace(item.DisplayName) ? item.ValueName : item.DisplayName;
-        var rowIndex = _itemsGrid.Rows.Add(
+        _itemsGrid.Rows.Add(
             item.Visible,
             displayName,
             item.ValueName,
@@ -315,9 +306,6 @@ public sealed class SettingsForm : Form
             item.LinkUrl,
             item.SoundFile,
             "...");
-
-        ApplyColorCellStyle(rowIndex, "BackgroundColor", item.BackgroundColor);
-        ApplyColorCellStyle(rowIndex, "TextColor", item.TextColor);
     }
 
     private void DeleteSelectedItem()
@@ -328,34 +316,6 @@ public sealed class SettingsForm : Form
         }
     }
 
-    private void SelectProgramBackgroundColor()
-    {
-        var currentHex = string.IsNullOrWhiteSpace(_programBackgroundButton.Text)
-            ? "#FFFFFF"
-            : _programBackgroundButton.Text;
-
-        using var dialog = new ColorDialog
-        {
-            FullOpen = true,
-            Color = ParseColor(currentHex, Color.White)
-        };
-
-        if (dialog.ShowDialog(this) != DialogResult.OK)
-        {
-            return;
-        }
-
-        ApplyProgramBackgroundButtonStyle(ToHex(dialog.Color));
-    }
-
-    private void ApplyProgramBackgroundButtonStyle(string hex)
-    {
-        var color = ParseColor(hex, Color.White);
-        _programBackgroundButton.Text = ToHex(color);
-        _programBackgroundButton.BackColor = color;
-        _programBackgroundButton.ForeColor = GetContrastingColor(color);
-    }
-
     private void ItemsGrid_CellContentClick(object? sender, DataGridViewCellEventArgs e)
     {
         if (e.RowIndex < 0)
@@ -363,44 +323,18 @@ public sealed class SettingsForm : Form
             return;
         }
 
-        var columnName = _itemsGrid.Columns[e.ColumnIndex].Name;
-
-        if (columnName == "BrowseSound")
+        if (_itemsGrid.Columns[e.ColumnIndex].Name == "BrowseSound")
         {
             SelectSoundFile(e.RowIndex);
-            return;
         }
-
-        if (columnName is not ("BackgroundColor" or "TextColor"))
-        {
-            return;
-        }
-
-        var cell = _itemsGrid.Rows[e.RowIndex].Cells[columnName];
-        var currentHex = Convert.ToString(cell.Value) ?? "#FFFFFF";
-
-        using var dialog = new ColorDialog
-        {
-            FullOpen = true,
-            Color = ParseColor(currentHex, Color.White)
-        };
-
-        if (dialog.ShowDialog(this) != DialogResult.OK)
-        {
-            return;
-        }
-
-        var newHex = ToHex(dialog.Color);
-        cell.Value = newHex;
-        ApplyColorCellStyle(e.RowIndex, columnName, newHex);
     }
 
     private void SelectSoundFile(int rowIndex)
     {
         using var dialog = new OpenFileDialog
         {
-            Title = "알림음 WAV 파일 선택",
-            Filter = "WAV 파일 (*.wav)|*.wav|모든 파일 (*.*)|*.*",
+            Title = "알림음 파일 선택",
+            Filter = "오디오 파일 (*.wav;*.mp3)|*.wav;*.mp3|WAV 파일 (*.wav)|*.wav|MP3 파일 (*.mp3)|*.mp3|모든 파일 (*.*)|*.*",
             CheckFileExists = true,
             Multiselect = false
         };
@@ -415,18 +349,6 @@ public sealed class SettingsForm : Form
         {
             _itemsGrid.Rows[rowIndex].Cells["SoundFile"].Value = dialog.FileName;
         }
-    }
-
-    private void ApplyColorCellStyle(int rowIndex, string columnName, string hex)
-    {
-        var color = ParseColor(hex, Color.White);
-        var cell = _itemsGrid.Rows[rowIndex].Cells[columnName];
-        cell.Style.BackColor = color;
-        cell.Style.SelectionBackColor = color;
-
-        var textColor = GetContrastingColor(color);
-        cell.Style.ForeColor = textColor;
-        cell.Style.SelectionForeColor = textColor;
     }
 
     private void SaveButton_Click(object? sender, EventArgs e)
@@ -462,8 +384,8 @@ public sealed class SettingsForm : Form
                 Visible = Convert.ToBoolean(row.Cells["Visible"].Value ?? true),
                 DisplayName = displayName,
                 ValueName = valueName,
-                BackgroundColor = Convert.ToString(row.Cells["BackgroundColor"].Value) ?? "#666666",
-                TextColor = Convert.ToString(row.Cells["TextColor"].Value) ?? "#FFFFFF",
+                BackgroundColor = (Convert.ToString(row.Cells["BackgroundColor"].Value) ?? "#666666").Trim(),
+                TextColor = (Convert.ToString(row.Cells["TextColor"].Value) ?? "#FFFFFF").Trim(),
                 LinkUrl = (Convert.ToString(row.Cells["LinkUrl"].Value) ?? string.Empty).Trim(),
                 SoundFile = (Convert.ToString(row.Cells["SoundFile"].Value) ?? string.Empty).Trim()
             });
@@ -472,9 +394,9 @@ public sealed class SettingsForm : Form
         ResultSettings = new AppSettings
         {
             ProgramName = GetProgramName(_programNameTextBox.Text),
-            ProgramBackgroundColor = string.IsNullOrWhiteSpace(_programBackgroundButton.Text)
+            ProgramBackgroundColor = string.IsNullOrWhiteSpace(_programBackgroundTextBox.Text)
                 ? "#FFFFFF"
-                : _programBackgroundButton.Text,
+                : _programBackgroundTextBox.Text.Trim(),
             DataUrl = _urlTextBox.Text.Trim(),
             PollingSeconds = (int)_pollingNumeric.Value,
             Layout = _layoutComboBox.SelectedIndex == 1 ? "Horizontal" : "Vertical",
@@ -516,28 +438,5 @@ public sealed class SettingsForm : Form
         return string.IsNullOrWhiteSpace(programName)
             ? AppSettings.DefaultProgramName
             : programName.Trim();
-    }
-
-    private static Color ParseColor(string value, Color fallback)
-    {
-        try
-        {
-            return ColorTranslator.FromHtml(value);
-        }
-        catch
-        {
-            return fallback;
-        }
-    }
-
-    private static string ToHex(Color color)
-    {
-        return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-    }
-
-    private static Color GetContrastingColor(Color color)
-    {
-        var brightness = (color.R * 299 + color.G * 587 + color.B * 114) / 1000;
-        return brightness >= 150 ? Color.Black : Color.White;
     }
 }
