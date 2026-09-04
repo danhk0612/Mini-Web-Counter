@@ -4,6 +4,7 @@ namespace JCMS_Mini_Monitoring;
 
 public sealed class SettingsForm : Form
 {
+    private readonly TextBox _programNameTextBox = new();
     private readonly TextBox _urlTextBox = new();
     private readonly NumericUpDown _pollingNumeric = new();
     private readonly ComboBox _layoutComboBox = new();
@@ -16,13 +17,13 @@ public sealed class SettingsForm : Form
     {
         ResultSettings = CloneSettings(settings);
 
-        Text = "설정";
+        Text = $"{GetProgramName(settings.ProgramName)} 설정";
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(820, 540);
+        ClientSize = new Size(820, 590);
         Font = new Font("Segoe UI", 9F);
 
         BuildUi();
@@ -36,9 +37,11 @@ public sealed class SettingsForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(16),
             ColumnCount = 1,
-            RowCount = 7
+            RowCount = 9
         };
 
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
@@ -50,13 +53,23 @@ public sealed class SettingsForm : Form
 
         root.Controls.Add(new Label
         {
-            Text = "데이터 URL",
+            Text = "프로그램 이름",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft
         }, 0, 0);
 
+        _programNameTextBox.Dock = DockStyle.Fill;
+        root.Controls.Add(_programNameTextBox, 0, 1);
+
+        root.Controls.Add(new Label
+        {
+            Text = "데이터 URL",
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft
+        }, 0, 2);
+
         _urlTextBox.Dock = DockStyle.Fill;
-        root.Controls.Add(_urlTextBox, 0, 1);
+        root.Controls.Add(_urlTextBox, 0, 3);
 
         var optionsPanel = new FlowLayoutPanel
         {
@@ -86,17 +99,17 @@ public sealed class SettingsForm : Form
         _scaleNumeric.Width = 70;
         optionsPanel.Controls.Add(_scaleNumeric);
         optionsPanel.Controls.Add(CreateOptionLabel("%", 4, 5, 0));
-        root.Controls.Add(optionsPanel, 0, 2);
+        root.Controls.Add(optionsPanel, 0, 4);
 
         root.Controls.Add(new Label
         {
             Text = "표시 항목  ·  항목 이름은 화면 표시명, 값 이름은 JSON 키입니다.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft
-        }, 0, 3);
+        }, 0, 5);
 
         ConfigureItemsGrid();
-        root.Controls.Add(_itemsGrid, 0, 4);
+        root.Controls.Add(_itemsGrid, 0, 6);
 
         var itemButtons = new FlowLayoutPanel
         {
@@ -122,7 +135,7 @@ public sealed class SettingsForm : Form
 
         itemButtons.Controls.Add(addButton);
         itemButtons.Controls.Add(deleteButton);
-        root.Controls.Add(itemButtons, 0, 5);
+        root.Controls.Add(itemButtons, 0, 7);
 
         var buttons = new FlowLayoutPanel
         {
@@ -148,7 +161,7 @@ public sealed class SettingsForm : Form
 
         buttons.Controls.Add(cancelButton);
         buttons.Controls.Add(saveButton);
-        root.Controls.Add(buttons, 0, 6);
+        root.Controls.Add(buttons, 0, 8);
 
         AcceptButton = saveButton;
         CancelButton = cancelButton;
@@ -221,6 +234,7 @@ public sealed class SettingsForm : Form
 
     private void LoadSettings(AppSettings settings)
     {
+        _programNameTextBox.Text = GetProgramName(settings.ProgramName);
         _urlTextBox.Text = settings.DataUrl;
         _pollingNumeric.Value = Math.Clamp(settings.PollingSeconds, 1, 3600);
         _layoutComboBox.SelectedIndex = string.Equals(settings.Layout, "Horizontal", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
@@ -352,6 +366,7 @@ public sealed class SettingsForm : Form
 
         ResultSettings = new AppSettings
         {
+            ProgramName = GetProgramName(_programNameTextBox.Text),
             DataUrl = _urlTextBox.Text.Trim(),
             PollingSeconds = (int)_pollingNumeric.Value,
             Layout = _layoutComboBox.SelectedIndex == 1 ? "Horizontal" : "Vertical",
@@ -367,6 +382,7 @@ public sealed class SettingsForm : Form
     {
         return new AppSettings
         {
+            ProgramName = GetProgramName(source.ProgramName),
             DataUrl = source.DataUrl,
             PollingSeconds = source.PollingSeconds,
             Layout = source.Layout,
@@ -380,6 +396,13 @@ public sealed class SettingsForm : Form
                 Visible = item.Visible
             }).ToList()
         };
+    }
+
+    private static string GetProgramName(string? programName)
+    {
+        return string.IsNullOrWhiteSpace(programName)
+            ? AppSettings.DefaultProgramName
+            : programName.Trim();
     }
 
     private static Color ParseColor(string value, Color fallback)
