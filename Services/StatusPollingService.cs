@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+using System.Text.Json;
 using JCMS_Mini_Monitoring.Models;
 
 namespace JCMS_Mini_Monitoring.Services;
@@ -14,7 +14,25 @@ public sealed class StatusPollingService : IDisposable
             return null;
         }
 
-        return await _httpClient.GetFromJsonAsync<StatusData>(url, cancellationToken);
+        var json = await _httpClient.GetStringAsync(url, cancellationToken);
+        using var document = JsonDocument.Parse(json);
+
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var result = new StatusData();
+
+        foreach (var property in document.RootElement.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetDecimal(out var number))
+            {
+                result.SetValue(property.Name, number);
+            }
+        }
+
+        return result;
     }
 
     public void Dispose()
