@@ -54,6 +54,8 @@ public sealed class MainForm : Form
         _pollingTimer.Tick += PollingTimer_Tick;
         _flashTimer.Tick += FlashTimer_Tick;
         Shown += MainForm_Shown;
+        Activated += (_, _) => ApplyWindowActivityAppearance(false);
+        Deactivate += (_, _) => ApplyWindowActivityAppearance(true);
         FormClosing += MainForm_FormClosing;
         FormClosed += MainForm_FormClosed;
     }
@@ -155,6 +157,26 @@ public sealed class MainForm : Form
         RebuildTrayItems();
         UpdateValues();
         UpdateWindowSize();
+        ApplyWindowActivityAppearance(!ContainsFocus);
+    }
+
+    private void ApplyWindowActivityAppearance(bool inactive)
+    {
+        var opacityPercent = Math.Clamp(_settings.InactiveOpacityPercent, 20, 100);
+        Opacity = inactive && _settings.DimWhenInactive
+            ? opacityPercent / 100D
+            : 1D;
+
+        var targetBorderStyle = inactive && _settings.HideTitleBarWhenInactive
+            ? FormBorderStyle.None
+            : FormBorderStyle.FixedSingle;
+
+        if (FormBorderStyle != targetBorderStyle)
+        {
+            FormBorderStyle = targetBorderStyle;
+            MaximizeBox = false;
+            UpdateWindowSize();
+        }
     }
 
     private void ApplyProgramName()

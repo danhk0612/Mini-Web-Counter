@@ -10,6 +10,9 @@ public sealed class SettingsForm : Form
     private readonly NumericUpDown _pollingNumeric = new();
     private readonly ComboBox _layoutComboBox = new();
     private readonly NumericUpDown _scaleNumeric = new();
+    private readonly CheckBox _dimWhenInactiveCheckBox = new();
+    private readonly NumericUpDown _inactiveOpacityNumeric = new();
+    private readonly CheckBox _hideTitleBarWhenInactiveCheckBox = new();
     private readonly DataGridView _itemsGrid = new();
 
     public AppSettings ResultSettings { get; private set; }
@@ -67,6 +70,18 @@ public sealed class SettingsForm : Form
         optionsPanel.Controls.Add(CreateOptionLabel("프로그램 배경", 4, 5, 6));
         _programBackgroundTextBox.Width = 95;
         optionsPanel.Controls.Add(_programBackgroundTextBox);
+        _dimWhenInactiveCheckBox.Text = "비활성 시 반투명";
+        _dimWhenInactiveCheckBox.AutoSize = true;
+        _dimWhenInactiveCheckBox.Margin = new Padding(12, 3, 6, 0);
+        optionsPanel.Controls.Add(_dimWhenInactiveCheckBox);
+        optionsPanel.Controls.Add(CreateOptionLabel("투명도", 4, 5, 4));
+        _inactiveOpacityNumeric.Minimum = 20; _inactiveOpacityNumeric.Maximum = 100; _inactiveOpacityNumeric.Width = 60;
+        optionsPanel.Controls.Add(_inactiveOpacityNumeric);
+        optionsPanel.Controls.Add(CreateOptionLabel("%", 3, 5, 8));
+        _hideTitleBarWhenInactiveCheckBox.Text = "비활성 시 타이틀바 숨김";
+        _hideTitleBarWhenInactiveCheckBox.AutoSize = true;
+        _hideTitleBarWhenInactiveCheckBox.Margin = new Padding(4, 3, 0, 0);
+        optionsPanel.Controls.Add(_hideTitleBarWhenInactiveCheckBox);
         root.Controls.Add(optionsPanel, 0, 4);
 
         root.Controls.Add(new Label { Text = "색상은 #RRGGBB 형식으로 직접 입력합니다. 알림음은 WAV 또는 MP3 파일을 사용할 수 있습니다.", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 5);
@@ -131,6 +146,9 @@ public sealed class SettingsForm : Form
         _layoutComboBox.SelectedIndex = string.Equals(settings.Layout, "Horizontal", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         _scaleNumeric.Value = Math.Clamp(settings.ScalePercent, 50, 200);
         _programBackgroundTextBox.Text = string.IsNullOrWhiteSpace(settings.ProgramBackgroundColor) ? "#FFFFFF" : settings.ProgramBackgroundColor;
+        _dimWhenInactiveCheckBox.Checked = settings.DimWhenInactive;
+        _inactiveOpacityNumeric.Value = Math.Clamp(settings.InactiveOpacityPercent, 20, 100);
+        _hideTitleBarWhenInactiveCheckBox.Checked = settings.HideTitleBarWhenInactive;
         _itemsGrid.Rows.Clear();
         foreach (var item in settings.Items ?? []) AddItemRow(item);
     }
@@ -214,6 +232,9 @@ public sealed class SettingsForm : Form
             PollingSeconds = (int)_pollingNumeric.Value,
             Layout = _layoutComboBox.SelectedIndex == 1 ? "Horizontal" : "Vertical",
             ScalePercent = (int)_scaleNumeric.Value,
+            DimWhenInactive = _dimWhenInactiveCheckBox.Checked,
+            InactiveOpacityPercent = (int)_inactiveOpacityNumeric.Value,
+            HideTitleBarWhenInactive = _hideTitleBarWhenInactiveCheckBox.Checked,
             Items = items
         };
         DialogResult = DialogResult.OK;
@@ -228,6 +249,9 @@ public sealed class SettingsForm : Form
         PollingSeconds = source.PollingSeconds,
         Layout = source.Layout,
         ScalePercent = source.ScalePercent,
+        DimWhenInactive = source.DimWhenInactive,
+        InactiveOpacityPercent = source.InactiveOpacityPercent,
+        HideTitleBarWhenInactive = source.HideTitleBarWhenInactive,
         Items = (source.Items ?? []).Select(item => new MonitoringItem
         {
             ValueName = item.ValueName,

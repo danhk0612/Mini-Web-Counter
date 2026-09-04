@@ -10,6 +10,9 @@ public sealed class AppSettings
     public int PollingSeconds { get; set; } = 5;
     public string Layout { get; set; } = "Vertical";
     public int ScalePercent { get; set; } = 100;
+    public bool DimWhenInactive { get; set; } = false;
+    public int InactiveOpacityPercent { get; set; } = 75;
+    public bool HideTitleBarWhenInactive { get; set; } = false;
 
     public List<MonitoringItem> Items { get; set; } =
     [

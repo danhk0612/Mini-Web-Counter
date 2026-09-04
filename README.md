@@ -10,6 +10,8 @@ URL이 JSON 숫자 값을 반환하기만 하면 필요한 항목을 골라 카�
 - 설정한 JSON 키의 값을 카드 형태로 상시 표시
 - 세로형 / 가로형 배치
 - 전체 UI 배율 50~200%
+- 비활성 시 반투명 표시 옵션 및 투명도(20~100%) 설정
+- 비활성 시 Windows 타이틀바 숨김 옵션
 - 항목 추가 / 삭제 및 위·아래 순서 변경
 - 항목별 표시 ON/OFF
 - 항목별 표시 이름, JSON 키, 배경색, 글자색 설정
@@ -68,6 +70,9 @@ GitHub Releases에서 최신 Windows x64 배포본을 받을 수 있습니다.
   "PollingSeconds": 5,
   "Layout": "Vertical",
   "ScalePercent": 100,
+  "DimWhenInactive": false,
+  "InactiveOpacityPercent": 75,
+  "HideTitleBarWhenInactive": false,
   "Items": [
     {
       "ValueName": "fire",
