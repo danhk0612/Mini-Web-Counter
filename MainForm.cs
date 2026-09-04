@@ -113,17 +113,27 @@ public sealed class MainForm : Form
 
     private async Task OpenSettingsAsync()
     {
-        using var dialog = new SettingsForm(_settings);
-        if (dialog.ShowDialog(this) != DialogResult.OK)
-        {
-            return;
-        }
+        var wasTopMost = TopMost;
+        TopMost = false;
 
-        _settings = dialog.ResultSettings;
-        _settingsService.Save(_settings);
-        ApplySettingsToUi();
-        ConfigurePolling();
-        await RefreshStatusAsync();
+        try
+        {
+            using var dialog = new SettingsForm(_settings);
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            _settings = dialog.ResultSettings;
+            _settingsService.Save(_settings);
+            ApplySettingsToUi();
+            ConfigurePolling();
+            await RefreshStatusAsync();
+        }
+        finally
+        {
+            TopMost = wasTopMost;
+        }
     }
 
     private void SetStatusVisibility(string valueName, bool visible)
