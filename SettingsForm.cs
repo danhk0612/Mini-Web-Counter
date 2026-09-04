@@ -24,7 +24,7 @@ public sealed class SettingsForm : Form
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(860, 590);
+        ClientSize = new Size(1120, 620);
         Font = new Font("Segoe UI", 9F);
 
         BuildUi();
@@ -111,7 +111,7 @@ public sealed class SettingsForm : Form
 
         root.Controls.Add(new Label
         {
-            Text = "표시 항목  ·  항목 이름은 화면 표시명, 값 이름은 JSON 키입니다.",
+            Text = "표시 항목  ·  링크 URL은 우상단 링크 아이콘, 알림음은 값이 0이 아닐 때 재생됩니다. 알림음은 WAV 파일을 사용합니다.",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft
         }, 0, 5);
@@ -191,29 +191,28 @@ public sealed class SettingsForm : Form
         {
             Name = "Visible",
             HeaderText = "표시",
-            Width = 55
+            Width = 50
         });
 
         _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "DisplayName",
             HeaderText = "항목 이름",
-            Width = 150
+            Width = 120
         });
 
         _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "ValueName",
-            HeaderText = "값 이름 (JSON 키)",
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            MinimumWidth = 180
+            HeaderText = "값 이름",
+            Width = 120
         });
 
         _itemsGrid.Columns.Add(new DataGridViewButtonColumn
         {
             Name = "BackgroundColor",
             HeaderText = "배경 색",
-            Width = 115,
+            Width = 90,
             FlatStyle = FlatStyle.Popup,
             UseColumnTextForButtonValue = false
         });
@@ -222,9 +221,34 @@ public sealed class SettingsForm : Form
         {
             Name = "TextColor",
             HeaderText = "글자 색",
-            Width = 115,
+            Width = 90,
             FlatStyle = FlatStyle.Popup,
             UseColumnTextForButtonValue = false
+        });
+
+        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            Name = "LinkUrl",
+            HeaderText = "링크 URL",
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            MinimumWidth = 190
+        });
+
+        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            Name = "SoundFile",
+            HeaderText = "알림음 WAV 파일",
+            Width = 220
+        });
+
+        _itemsGrid.Columns.Add(new DataGridViewButtonColumn
+        {
+            Name = "BrowseSound",
+            HeaderText = "찾기",
+            Text = "...",
+            UseColumnTextForButtonValue = true,
+            Width = 50,
+            FlatStyle = FlatStyle.Popup
         });
 
         _itemsGrid.CellContentClick += ItemsGrid_CellContentClick;
@@ -282,7 +306,16 @@ public sealed class SettingsForm : Form
     private void AddItemRow(MonitoringItem item)
     {
         var displayName = string.IsNullOrWhiteSpace(item.DisplayName) ? item.ValueName : item.DisplayName;
-        var rowIndex = _itemsGrid.Rows.Add(item.Visible, displayName, item.ValueName, item.BackgroundColor, item.TextColor);
+        var rowIndex = _itemsGrid.Rows.Add(
+            item.Visible,
+            displayName,
+            item.ValueName,
+            item.BackgroundColor,
+            item.TextColor,
+            item.LinkUrl,
+            item.SoundFile,
+            "...");
+
         ApplyColorCellStyle(rowIndex, "BackgroundColor", item.BackgroundColor);
         ApplyColorCellStyle(rowIndex, "TextColor", item.TextColor);
     }
@@ -331,6 +364,13 @@ public sealed class SettingsForm : Form
         }
 
         var columnName = _itemsGrid.Columns[e.ColumnIndex].Name;
+
+        if (columnName == "BrowseSound")
+        {
+            SelectSoundFile(e.RowIndex);
+            return;
+        }
+
         if (columnName is not ("BackgroundColor" or "TextColor"))
         {
             return;
@@ -353,6 +393,28 @@ public sealed class SettingsForm : Form
         var newHex = ToHex(dialog.Color);
         cell.Value = newHex;
         ApplyColorCellStyle(e.RowIndex, columnName, newHex);
+    }
+
+    private void SelectSoundFile(int rowIndex)
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "알림음 WAV 파일 선택",
+            Filter = "WAV 파일 (*.wav)|*.wav|모든 파일 (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+
+        var currentPath = Convert.ToString(_itemsGrid.Rows[rowIndex].Cells["SoundFile"].Value);
+        if (!string.IsNullOrWhiteSpace(currentPath) && File.Exists(currentPath))
+        {
+            dialog.FileName = currentPath;
+        }
+
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            _itemsGrid.Rows[rowIndex].Cells["SoundFile"].Value = dialog.FileName;
+        }
     }
 
     private void ApplyColorCellStyle(int rowIndex, string columnName, string hex)
@@ -401,7 +463,9 @@ public sealed class SettingsForm : Form
                 DisplayName = displayName,
                 ValueName = valueName,
                 BackgroundColor = Convert.ToString(row.Cells["BackgroundColor"].Value) ?? "#666666",
-                TextColor = Convert.ToString(row.Cells["TextColor"].Value) ?? "#FFFFFF"
+                TextColor = Convert.ToString(row.Cells["TextColor"].Value) ?? "#FFFFFF",
+                LinkUrl = (Convert.ToString(row.Cells["LinkUrl"].Value) ?? string.Empty).Trim(),
+                SoundFile = (Convert.ToString(row.Cells["SoundFile"].Value) ?? string.Empty).Trim()
             });
         }
 
@@ -440,6 +504,8 @@ public sealed class SettingsForm : Form
                 DisplayName = string.IsNullOrWhiteSpace(item.DisplayName) ? item.ValueName : item.DisplayName,
                 BackgroundColor = item.BackgroundColor,
                 TextColor = item.TextColor,
+                LinkUrl = item.LinkUrl,
+                SoundFile = item.SoundFile,
                 Visible = item.Visible
             }).ToList()
         };
