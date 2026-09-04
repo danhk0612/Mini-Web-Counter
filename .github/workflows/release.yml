@@ -1,4 +1,4 @@
-name: Build and Release v1.0.0
+name: Build and Release v1.0.1
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: jcms-release-v1.0.0
+  group: mini-web-counter-release-v1.0.1
   cancel-in-progress: true
 
 jobs:
@@ -25,55 +25,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Hide link icon when URL is empty
+      - name: Apply polling audio behavior
         shell: pwsh
         run: |
           $path = 'MainForm.cs'
           $text = Get-Content $path -Raw -Encoding UTF8
+          $text = $text.Replace('_audioPlaybackService.Play(item.ValueName, path);', '_audioPlaybackService.PlayLooping(item.ValueName, path);')
+          $text = $text.Replace('_statusData = data;`r`n            UpdateValues();', '_statusData = data;`r`n            _audioPlaybackService.StopAll();`r`n            UpdateValues();')
+          $text = $text.Replace('_statusData = data;`n            UpdateValues();', '_statusData = data;`n            _audioPlaybackService.StopAll();`n            UpdateValues();')
 
-          $pattern1 = 'var hasSound = !string\.IsNullOrWhiteSpace\(item\.SoundFile\);\s*var iconCount = hasSound \? 2 : 1;'
-          $replacement1 = @'
-          var hasLink = !string.IsNullOrWhiteSpace(item.LinkUrl);
-          var hasSound = !string.IsNullOrWhiteSpace(item.SoundFile);
-          var iconCount = (hasLink ? 1 : 0) + (hasSound ? 1 : 0);
-          '@.Trim()
-          $text = [regex]::Replace($text, $pattern1, $replacement1)
-
-          $pattern2 = '(?s)var iconX = cardWidth - sidePadding - iconSize;\s*var linkIcon = CreateIconPanel\(iconX, Scale\(4, scale\), iconSize\);\s*linkIcon\.Cursor = string\.IsNullOrWhiteSpace\(item\.LinkUrl\) \? Cursors\.Default : Cursors\.Hand;\s*linkIcon\.Paint \+= \(_, e\) => DrawLinkIcon\(e\.Graphics, linkIcon\.ClientRectangle, textColor, scale\);\s*linkIcon\.Click \+= \(_, _\) => OpenItemLink\(item\.LinkUrl\);\s*panel\.Controls\.Add\(linkIcon\);\s*Panel\? soundIcon = null;\s*if \(hasSound\)\s*\{\s*iconX -= iconSize \+ iconGap;'
-          $replacement2 = @'
-          var iconX = cardWidth - sidePadding - iconSize;
-          if (hasLink)
-          {
-              var linkIcon = CreateIconPanel(iconX, Scale(4, scale), iconSize);
-              linkIcon.Cursor = Cursors.Hand;
-              linkIcon.Paint += (_, e) => DrawLinkIcon(e.Graphics, linkIcon.ClientRectangle, textColor, scale);
-              linkIcon.Click += (_, _) => OpenItemLink(item.LinkUrl);
-              panel.Controls.Add(linkIcon);
-          }
-
-          Panel? soundIcon = null;
-          if (hasSound)
-          {
-              if (hasLink)
-              {
-                  iconX -= iconSize + iconGap;
-              }
-          '@.Trim()
-          $text = [regex]::Replace($text, $pattern2, $replacement2)
-
-          if ($text -notmatch 'var hasLink = !string\.IsNullOrWhiteSpace\(item\.LinkUrl\);' -or $text -notmatch 'if \(hasLink\)') {
-            throw 'Link icon conditional patch failed.'
+          if ($text -notmatch 'PlayLooping\(item\.ValueName, path\)' -or $text -notmatch '_audioPlaybackService\.StopAll\(\);') {
+            throw 'Polling audio patch failed.'
           }
 
           [System.IO.File]::WriteAllText((Resolve-Path $path), $text, [System.Text.UTF8Encoding]::new($false))
 
-          if (git diff --quiet -- MainForm.cs) {
-            Write-Host 'MainForm.cs already up to date.'
-          } else {
+          if (-not (git diff --quiet -- MainForm.cs)) {
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git add MainForm.cs
-            git commit -m 'Hide link icon when URL is empty [skip ci]'
+            git commit -m 'Loop alert audio until next poll [skip ci]'
             git push origin HEAD:main
           }
 
@@ -101,15 +72,15 @@ jobs:
       - name: Create ZIP
         shell: pwsh
         run: |
-          Compress-Archive -Path .\publish\* -DestinationPath .\JCMS_Mini_Counter-v1.0.0-win-x64.zip -Force
+          Compress-Archive -Path .\publish\* -DestinationPath .\Mini-Web-Counter-v1.0.1-win-x64.zip -Force
 
-      - name: Recreate GitHub Release
+      - name: Create GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v1.0.0'
-          $zip = '.\JCMS_Mini_Counter-v1.0.0-win-x64.zip'
+          $tag = 'v1.0.1'
+          $zip = '.\Mini-Web-Counter-v1.0.1-win-x64.zip'
           $exe = '.\publish\JCMS_Mini_Monitoring.exe'
           $target = (git rev-parse HEAD).Trim()
 
@@ -118,4 +89,4 @@ jobs:
             gh release delete $tag --yes --cleanup-tag
           }
 
-          gh release create $tag $zip $exe --target $target --title 'JCMS 미니 카운터 v1.0.0' --notes '첫 배포 버전. Windows 10/11 x64용 self-contained 빌드이며 .NET 런타임 별도 설치가 필요하지 않습니다.'
+          gh release create $tag $zip $exe --target $target --title 'Mini Web Counter v1.0.1' --notes '알림음이 다음 성공적인 폴링 전까지 반복 재생되도록 변경하고, 기본 프로그램명을 Mini Web Counter로 변경했습니다. 항목 순서 변경 기능과 MIT License를 추가했습니다. Windows 10/11 x64 self-contained 배포본입니다.'
