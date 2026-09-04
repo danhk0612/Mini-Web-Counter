@@ -456,7 +456,7 @@ if (hasSound)
 
             try
             {
-                _audioPlaybackService.Play(item.ValueName, path);
+                _audioPlaybackService.PlayLooping(item.ValueName, path);
             }
             catch
             {
@@ -584,6 +584,7 @@ if (hasSound)
             }
 
             _statusData = data;
+            _audioPlaybackService.StopAll();
             UpdateValues();
             PlayActiveSounds();
         }
