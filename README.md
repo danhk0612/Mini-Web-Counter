@@ -29,6 +29,20 @@ URL이 JSON 숫자 값을 반환하기만 하면 필요한 항목을 골라 카�
 - 창을 닫으면 트레이로 숨김
 - 중복 실행 차단
 - 설정은 실행 파일과 동일한 폴더의 `appsettings.json`에 저장
+- Windows 실행 파일에 전용 프로그램 아이콘 포함
+
+## 다운로드 및 실행
+
+GitHub Releases에서 최신 Windows x64 배포본을 받을 수 있습니다.
+
+- `Mini-Web-Counter.exe`: 단일 실행 파일
+- `Mini-Web-Counter-vX.Y.Z-win-x64.zip`: 배포 파일 묶음
+
+배포본은 Windows 10/11 x64용 self-contained 빌드이므로 대상 PC에 .NET 런타임을 별도로 설치하지 않아도 됩니다.
+
+처음 실행하면 실행 파일과 같은 폴더에 `appsettings.json`이 생성됩니다. 설정은 트레이 아이콘의 `설정` 메뉴에서 변경합니다.
+
+> 프로그램이 설정 파일을 실행 파일과 같은 폴더에 저장하므로, 쓰기 권한이 있는 폴더에서 실행하는 것을 권장합니다.
 
 ## 응답 JSON 예시
 
@@ -72,15 +86,34 @@ URL이 JSON 숫자 값을 반환하기만 하면 필요한 항목을 골라 카�
 
 ## 환경
 
-- Windows 10/11
+- Windows 10/11 x64
 - C# / WinForms
 - .NET 8
 
 ## 빌드
 
 ```powershell
-dotnet build -c Release
+dotnet build .\Mini-Web-Counter.csproj -c Release
 ```
+
+self-contained 단일 EXE 배포 예시:
+
+```powershell
+dotnet publish .\Mini-Web-Counter.csproj `
+  -c Release `
+  -r win-x64 `
+  --self-contained true `
+  -p:PublishSingleFile=true `
+  -p:IncludeNativeLibrariesForSelfExtract=true
+```
+
+## 릴리스
+
+### v1.0.3
+
+- Windows EXE 자체에 프로그램 아이콘이 표시되도록 `app.ico`와 `ApplicationIcon` 설정 추가
+- 최종 프로젝트/배포 명칭을 `Mini Web Counter` 기준으로 정리
+- README 및 배포 안내 정리
 
 ## 라이선스
 
