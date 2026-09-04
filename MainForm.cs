@@ -45,7 +45,7 @@ public sealed class MainForm : Form
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
         TopMost = true;
-        ShowInTaskbar = true;
+        ShowInTaskbar = false;
         ClientSize = new Size(196, 112);
         Font = new Font("Segoe UI", 9F);
         Icon = _appIcon;
