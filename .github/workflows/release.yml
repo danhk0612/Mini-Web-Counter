@@ -1,11 +1,6 @@
 name: Build and Release v1.0.1
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/release.yml'
   workflow_dispatch:
 
 permissions:
@@ -25,44 +20,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Apply polling audio behavior
-        shell: pwsh
-        run: |
-          $path = 'MainForm.cs'
-          $text = Get-Content $path -Raw -Encoding UTF8
-          $text = [regex]::Replace($text, '_audioPlaybackService\.Play\(item\.ValueName, path\);', '_audioPlaybackService.PlayLooping(item.ValueName, path);')
-          $text = [regex]::Replace(
-            $text,
-            '_statusData = data;\r?\n(?<indent>\s*)UpdateValues\(\);',
-            { param($m) "_statusData = data;`r`n$($m.Groups['indent'].Value)_audioPlaybackService.StopAll();`r`n$($m.Groups['indent'].Value)UpdateValues();" }
-          )
-
-          if ($text -notmatch 'PlayLooping\(item\.ValueName, path\)' -or $text -notmatch '_audioPlaybackService\.StopAll\(\);') {
-            throw 'Polling audio patch failed.'
-          }
-
-          [System.IO.File]::WriteAllText((Resolve-Path $path), $text, [System.Text.UTF8Encoding]::new($false))
-
-          if (-not (git diff --quiet -- MainForm.cs)) {
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add MainForm.cs
-            git commit -m 'Loop alert audio until next poll [skip ci]'
-            git push origin HEAD:main
-          }
-
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore .\Mini-Web-Counter.csproj
 
       - name: Publish Windows x64
         shell: pwsh
         run: |
-          dotnet publish .\JCMS_Mini_Monitoring.csproj `
+          dotnet publish .\Mini-Web-Counter.csproj `
             -c Release `
             -r win-x64 `
             --self-contained true `
@@ -84,7 +53,7 @@ jobs:
         run: |
           $tag = 'v1.0.1'
           $zip = '.\Mini-Web-Counter-v1.0.1-win-x64.zip'
-          $exe = '.\publish\JCMS_Mini_Monitoring.exe'
+          $exe = '.\publish\Mini-Web-Counter.exe'
           $target = (git rev-parse HEAD).Trim()
 
           gh release view $tag *> $null
