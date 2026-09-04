@@ -5,6 +5,7 @@ public sealed class AppSettings
     public const string DefaultProgramName = "JCMS 미니 카운터";
 
     public string ProgramName { get; set; } = DefaultProgramName;
+    public string ProgramBackgroundColor { get; set; } = "#FFFFFF";
     public string DataUrl { get; set; } = string.Empty;
     public int PollingSeconds { get; set; } = 5;
     public string Layout { get; set; } = "Vertical";
