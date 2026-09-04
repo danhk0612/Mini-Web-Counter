@@ -202,8 +202,9 @@ public sealed class MainForm : Form
         var iconGap = Scale(2, scale);
         var baseBackgroundColor = ParseColor(item.BackgroundColor, Color.DimGray);
         var textColor = ParseColor(item.TextColor, Color.White);
-        var hasSound = !string.IsNullOrWhiteSpace(item.SoundFile);
-        var iconCount = hasSound ? 2 : 1;
+        var hasLink = !string.IsNullOrWhiteSpace(item.LinkUrl);
+var hasSound = !string.IsNullOrWhiteSpace(item.SoundFile);
+var iconCount = (hasLink ? 1 : 0) + (hasSound ? 1 : 0);
         var iconAreaWidth = iconCount * iconSize + Math.Max(0, iconCount - 1) * iconGap;
 
         var panel = new Panel
@@ -227,16 +228,22 @@ public sealed class MainForm : Form
         };
 
         var iconX = cardWidth - sidePadding - iconSize;
-        var linkIcon = CreateIconPanel(iconX, Scale(4, scale), iconSize);
-        linkIcon.Cursor = string.IsNullOrWhiteSpace(item.LinkUrl) ? Cursors.Default : Cursors.Hand;
-        linkIcon.Paint += (_, e) => DrawLinkIcon(e.Graphics, linkIcon.ClientRectangle, textColor, scale);
-        linkIcon.Click += (_, _) => OpenItemLink(item.LinkUrl);
-        panel.Controls.Add(linkIcon);
+if (hasLink)
+{
+    var linkIcon = CreateIconPanel(iconX, Scale(4, scale), iconSize);
+    linkIcon.Cursor = Cursors.Hand;
+    linkIcon.Paint += (_, e) => DrawLinkIcon(e.Graphics, linkIcon.ClientRectangle, textColor, scale);
+    linkIcon.Click += (_, _) => OpenItemLink(item.LinkUrl);
+    panel.Controls.Add(linkIcon);
+}
 
-        Panel? soundIcon = null;
-        if (hasSound)
-        {
-            iconX -= iconSize + iconGap;
+Panel? soundIcon = null;
+if (hasSound)
+{
+    if (hasLink)
+    {
+        iconX -= iconSize + iconGap;
+    }
             soundIcon = CreateIconPanel(iconX, Scale(4, scale), iconSize);
             soundIcon.Cursor = Cursors.Hand;
             soundIcon.Paint += (_, e) => DrawSoundIcon(
