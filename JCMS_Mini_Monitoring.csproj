@@ -10,4 +10,10 @@
     <RootNamespace>JCMS_Mini_Monitoring</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
