@@ -722,3 +722,4 @@ public sealed class MainForm : Form
         public DateTime FlashUntilUtc { get; set; }
     }
 }
+
