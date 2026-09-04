@@ -17,8 +17,13 @@ public sealed class AudioPlaybackService : IDisposable
         var alias = CreateAlias(key);
         CloseAlias(alias);
 
+        var extension = Path.GetExtension(filePath);
+        var deviceType = string.Equals(extension, ".wav", StringComparison.OrdinalIgnoreCase)
+            ? "waveaudio"
+            : "mpegvideo";
+
         var escapedPath = filePath.Replace("\"", "\"\"");
-        if (SendCommand($"open \"{escapedPath}\" alias {alias}") != 0)
+        if (SendCommand($"open \"{escapedPath}\" type {deviceType} alias {alias}") != 0)
         {
             return;
         }
