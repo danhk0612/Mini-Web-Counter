@@ -5,25 +5,22 @@ namespace JCMS_Mini_Monitoring;
 
 public sealed class MainForm : Form
 {
-    private const int BaseCardWidth = 260;
-    private const int BaseCardHeight = 92;
+    private const int BaseCardWidth = 180;
+    private const int BaseCardHeight = 96;
     private const int BaseCardGap = 8;
-    private const int BasePadding = 10;
-    private const int BaseHeaderHeight = 42;
+    private const int BasePadding = 8;
 
     private readonly SettingsService _settingsService = new();
     private readonly StatusPollingService _pollingService = new();
     private readonly System.Windows.Forms.Timer _pollingTimer = new();
     private readonly System.Windows.Forms.Timer _flashTimer = new() { Interval = 150 };
-    private readonly Panel _header = new();
-    private readonly Label _titleLabel = new();
-    private readonly Button _settingsButton = new();
     private readonly FlowLayoutPanel _cardsPanel = new();
     private readonly NotifyIcon _notifyIcon = new();
     private readonly ToolStripMenuItem _trayTitleItem = new();
     private readonly ToolStripMenuItem _displayItemsMenu = new("표시 항목");
     private readonly Dictionary<string, StatusCard> _cards = new(StringComparer.Ordinal);
     private readonly Dictionary<string, decimal> _lastValues = new(StringComparer.Ordinal);
+    private readonly Icon _appIcon = AppIconFactory.Create();
 
     private AppSettings _settings;
     private StatusData _statusData = new();
@@ -41,10 +38,9 @@ public sealed class MainForm : Form
         MaximizeBox = false;
         TopMost = true;
         ShowInTaskbar = true;
-        ClientSize = new Size(280, 560);
-        BackColor = Color.FromArgb(242, 244, 247);
+        ClientSize = new Size(196, 112);
         Font = new Font("Segoe UI", 9F);
-        Icon = SystemIcons.Application;
+        Icon = _appIcon;
 
         BuildUi();
         BuildTrayMenu();
@@ -60,35 +56,16 @@ public sealed class MainForm : Form
 
     private void BuildUi()
     {
-        _header.Dock = DockStyle.Top;
-        _header.BackColor = Color.White;
-
-        _titleLabel.Text = "상태 모니터";
-        _titleLabel.AutoSize = true;
-        _titleLabel.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-        _header.Controls.Add(_titleLabel);
-
-        _settingsButton.Text = "설정";
-        _settingsButton.FlatStyle = FlatStyle.Flat;
-        _settingsButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        _settingsButton.FlatAppearance.BorderColor = Color.FromArgb(210, 214, 220);
-        _settingsButton.Click += async (_, _) => await OpenSettingsAsync();
-        _header.Controls.Add(_settingsButton);
-
         _cardsPanel.Dock = DockStyle.Fill;
         _cardsPanel.WrapContents = false;
         _cardsPanel.AutoScroll = false;
-        _cardsPanel.BackColor = BackColor;
-
         Controls.Add(_cardsPanel);
-        Controls.Add(_header);
     }
 
     private void BuildTrayMenu()
     {
         var menu = new ContextMenuStrip();
 
-        _trayTitleItem.Text = GetProgramName();
         _trayTitleItem.Enabled = false;
         menu.Items.Add(_trayTitleItem);
         menu.Items.Add(new ToolStripSeparator());
@@ -108,11 +85,12 @@ public sealed class MainForm : Form
         exitItem.Click += (_, _) => ExitApplication();
         menu.Items.Add(exitItem);
 
-        _notifyIcon.Text = GetNotifyIconText(GetProgramName());
-        _notifyIcon.Icon = SystemIcons.Application;
+        _notifyIcon.Icon = _appIcon;
         _notifyIcon.ContextMenuStrip = menu;
         _notifyIcon.Visible = true;
         _notifyIcon.DoubleClick += (_, _) => ShowMainWindow();
+
+        ApplyProgramName();
     }
 
     private async Task OpenSettingsAsync()
@@ -122,7 +100,11 @@ public sealed class MainForm : Form
 
         try
         {
-            using var dialog = new SettingsForm(_settings);
+            using var dialog = new SettingsForm(_settings)
+            {
+                Icon = _appIcon
+            };
+
             if (dialog.ShowDialog(this) != DialogResult.OK)
             {
                 return;
@@ -160,8 +142,11 @@ public sealed class MainForm : Form
         _settings.Items ??= [];
         _settings.ScalePercent = Math.Clamp(_settings.ScalePercent, 50, 200);
 
+        var programBackground = ParseColor(_settings.ProgramBackgroundColor, Color.White);
+        BackColor = programBackground;
+        _cardsPanel.BackColor = programBackground;
+
         ApplyProgramName();
-        ApplyScaleToHeader();
         RebuildCards();
         RebuildTrayItems();
         UpdateValues();
@@ -175,20 +160,6 @@ public sealed class MainForm : Form
         Text = programName;
         _trayTitleItem.Text = programName;
         _notifyIcon.Text = GetNotifyIconText(programName);
-    }
-
-    private void ApplyScaleToHeader()
-    {
-        var scale = GetScale();
-        var headerHeight = Scale(BaseHeaderHeight, scale);
-
-        _header.Height = headerHeight;
-        _titleLabel.Font = new Font("Segoe UI", 10F * scale, FontStyle.Bold);
-        _titleLabel.Location = new Point(Scale(12, scale), Scale(11, scale));
-
-        _settingsButton.Size = new Size(Scale(58, scale), Scale(27, scale));
-        _settingsButton.Location = new Point(ClientSize.Width - _settingsButton.Width - Scale(12, scale), Scale(7, scale));
-        _settingsButton.Font = new Font("Segoe UI", 9F * scale);
     }
 
     private void RebuildCards()
@@ -222,7 +193,7 @@ public sealed class MainForm : Form
     {
         var cardWidth = Scale(BaseCardWidth, scale);
         var cardHeight = Scale(BaseCardHeight, scale);
-        var sidePadding = Scale(10, scale);
+        var sidePadding = Scale(8, scale);
         var baseBackgroundColor = ParseColor(item.BackgroundColor, Color.DimGray);
         var textColor = ParseColor(item.TextColor, Color.White);
 
@@ -239,11 +210,11 @@ public sealed class MainForm : Form
         {
             Text = GetDisplayName(item),
             ForeColor = textColor,
-            Font = new Font("Segoe UI", 10.5F * scale, FontStyle.Bold),
+            Font = new Font("Segoe UI", 12.5F * scale, FontStyle.Bold),
             TextAlign = ContentAlignment.MiddleLeft,
             AutoEllipsis = true,
-            Size = new Size(cardWidth - sidePadding * 2, Scale(24, scale)),
-            Location = new Point(sidePadding, Scale(4, scale))
+            Size = new Size(cardWidth - sidePadding * 2, Scale(28, scale)),
+            Location = new Point(sidePadding, Scale(3, scale))
         };
 
         var valueLabel = new Label
@@ -252,9 +223,9 @@ public sealed class MainForm : Form
             ForeColor = textColor,
             TextAlign = ContentAlignment.MiddleCenter,
             AutoEllipsis = true,
-            Font = new Font("Segoe UI", 42F * scale, FontStyle.Bold),
-            Size = new Size(cardWidth - sidePadding * 2, Scale(63, scale)),
-            Location = new Point(sidePadding, Scale(25, scale))
+            Font = new Font("Segoe UI", 40F * scale, FontStyle.Bold),
+            Size = new Size(cardWidth - sidePadding * 2, Scale(58, scale)),
+            Location = new Point(sidePadding, Scale(28, scale))
         };
 
         panel.Controls.Add(titleLabel);
@@ -377,25 +348,24 @@ public sealed class MainForm : Form
         var cardHeight = Scale(BaseCardHeight, scale);
         var gap = Scale(BaseCardGap, scale);
         var padding = Scale(BasePadding, scale);
-        var headerHeight = Scale(BaseHeaderHeight, scale);
         var visibleCount = _settings.Items.Count(item => item.Visible);
+        var gapCount = Math.Max(0, visibleCount - 1);
 
         int contentWidth;
         int contentHeight;
 
         if (IsHorizontalLayout())
         {
-            contentWidth = padding * 2 + (visibleCount == 0 ? cardWidth : visibleCount * (cardWidth + gap));
-            contentHeight = padding * 2 + (visibleCount == 0 ? 0 : cardHeight);
+            contentWidth = padding * 2 + (visibleCount == 0 ? cardWidth : visibleCount * cardWidth + gapCount * gap);
+            contentHeight = padding * 2 + cardHeight;
         }
         else
         {
             contentWidth = padding * 2 + cardWidth;
-            contentHeight = padding * 2 + visibleCount * (cardHeight + gap);
+            contentHeight = padding * 2 + (visibleCount == 0 ? cardHeight : visibleCount * cardHeight + gapCount * gap);
         }
 
-        ClientSize = new Size(contentWidth, headerHeight + contentHeight);
-        _settingsButton.Location = new Point(ClientSize.Width - _settingsButton.Width - Scale(12, scale), Scale(7, scale));
+        ClientSize = new Size(contentWidth, contentHeight);
     }
 
     private void ConfigurePolling()
@@ -485,6 +455,7 @@ public sealed class MainForm : Form
         _pollingService.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
+        _appIcon.Dispose();
     }
 
     private bool IsHorizontalLayout()
@@ -526,8 +497,13 @@ public sealed class MainForm : Form
             : value.ToString("0.##");
     }
 
-    private static Color ParseColor(string value, Color fallback)
+    private static Color ParseColor(string? value, Color fallback)
     {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
         try
         {
             return ColorTranslator.FromHtml(value);
