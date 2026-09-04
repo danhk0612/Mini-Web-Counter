@@ -246,12 +246,17 @@ if (hasSound)
     }
             soundIcon = CreateIconPanel(iconX, Scale(4, scale), iconSize);
             soundIcon.Cursor = Cursors.Hand;
-            soundIcon.Paint += (_, e) => DrawSoundIcon(
-                e.Graphics,
-                soundIcon.ClientRectangle,
-                textColor,
-                _mutedItems.Contains(item.ValueName),
-                scale);
+            soundIcon.Paint += (_, e) =>
+            {
+                var muted = _mutedItems.Contains(item.ValueName);
+                var iconColor = muted ? Color.LightGray : textColor;
+                DrawSoundIcon(
+                    e.Graphics,
+                    soundIcon.ClientRectangle,
+                    iconColor,
+                    muted,
+                    scale);
+            };
             soundIcon.Click += (_, _) =>
             {
                 if (!_mutedItems.Add(item.ValueName))
@@ -302,16 +307,17 @@ if (hasSound)
         using var pen = new Pen(color, Math.Max(1.4F, 1.6F * scale))
         {
             StartCap = LineCap.Round,
-            EndCap = LineCap.Round
+            EndCap = LineCap.Round,
+            LineJoin = LineJoin.Round
         };
 
         var w = bounds.Width;
         var h = bounds.Height;
-        var r1 = new RectangleF(w * 0.18F, h * 0.39F, w * 0.42F, h * 0.28F);
-        var r2 = new RectangleF(w * 0.40F, h * 0.25F, w * 0.42F, h * 0.28F);
-        graphics.DrawArc(pen, r1, 120, 240);
-        graphics.DrawArc(pen, r2, 300, 240);
-        graphics.DrawLine(pen, w * 0.40F, h * 0.55F, w * 0.61F, h * 0.42F);
+        var windowRect = new RectangleF(w * 0.18F, h * 0.30F, w * 0.48F, h * 0.48F);
+        graphics.DrawRectangle(pen, windowRect.X, windowRect.Y, windowRect.Width, windowRect.Height);
+        graphics.DrawLine(pen, w * 0.46F, h * 0.54F, w * 0.80F, h * 0.20F);
+        graphics.DrawLine(pen, w * 0.61F, h * 0.20F, w * 0.80F, h * 0.20F);
+        graphics.DrawLine(pen, w * 0.80F, h * 0.20F, w * 0.80F, h * 0.39F);
     }
 
     private static void DrawSoundIcon(Graphics graphics, Rectangle bounds, Color color, bool muted, float scale)
