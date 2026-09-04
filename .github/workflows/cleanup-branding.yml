@@ -1,0 +1,92 @@
+name: Normalize Mini Web Counter branding
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/cleanup-branding.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Normalize names
+        shell: pwsh
+        run: |
+          if (Test-Path 'JCMS_Mini_Monitoring.csproj') {
+            git mv 'JCMS_Mini_Monitoring.csproj' 'Mini-Web-Counter.csproj'
+          }
+
+          $textFiles = Get-ChildItem -Recurse -File | Where-Object {
+            $_.Extension -in '.cs', '.csproj', '.yml', '.yaml', '.md', '.json' -and
+            $_.FullName -notlike '*\.git\*' -and
+            $_.Name -ne 'cleanup-branding.yml'
+          }
+
+          foreach ($file in $textFiles) {
+            $text = Get-Content $file.FullName -Raw -Encoding UTF8
+            $updated = $text
+              .Replace('JCMS_Mini_Monitoring', 'MiniWebCounter')
+              .Replace('JCMS 미니 카운터', 'Mini Web Counter')
+              .Replace('jcms_', 'mwc_')
+
+            if ($updated -ne $text) {
+              [System.IO.File]::WriteAllText($file.FullName, $updated, [System.Text.UTF8Encoding]::new($false))
+            }
+          }
+
+          $projectPath = 'Mini-Web-Counter.csproj'
+          $project = Get-Content $projectPath -Raw -Encoding UTF8
+          $project = [regex]::Replace($project, '<AssemblyName>.*?</AssemblyName>', '<AssemblyName>Mini-Web-Counter</AssemblyName>')
+          $project = [regex]::Replace($project, '<RootNamespace>.*?</RootNamespace>', '<RootNamespace>MiniWebCounter</RootNamespace>')
+          [System.IO.File]::WriteAllText((Resolve-Path $projectPath), $project, [System.Text.UTF8Encoding]::new($false))
+
+          $releasePath = '.github/workflows/release.yml'
+          if (Test-Path $releasePath) {
+            $release = Get-Content $releasePath -Raw -Encoding UTF8
+            $release = $release.Replace('.\MiniWebCounter.csproj', '.\Mini-Web-Counter.csproj')
+            $release = $release.Replace('.\publish\MiniWebCounter.exe', '.\publish\Mini-Web-Counter.exe')
+            $release = [regex]::Replace(
+              $release,
+              '(?ms)^on:\s*\n\s*push:.*?\n\s*workflow_dispatch:\s*$',
+              "on:`n  workflow_dispatch:"
+            )
+            [System.IO.File]::WriteAllText((Resolve-Path $releasePath), $release, [System.Text.UTF8Encoding]::new($false))
+          }
+
+          $remaining = Get-ChildItem -Recurse -File | Where-Object {
+            $_.FullName -notlike '*\.git\*' -and $_.Name -ne 'cleanup-branding.yml'
+          } | Select-String -Pattern 'JCMS_Mini_Monitoring|JCMS 미니 카운터|jcms_' -SimpleMatch:$false
+
+          if ($remaining) {
+            $remaining | ForEach-Object { Write-Host $_ }
+            throw 'Legacy branding remains in the working tree.'
+          }
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build verification
+        run: dotnet build .\Mini-Web-Counter.csproj -c Release
+
+      - name: Commit cleanup and remove one-time workflow
+        shell: pwsh
+        run: |
+          git rm '.github/workflows/cleanup-branding.yml'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Normalize Mini Web Counter project naming'
+          git push origin HEAD:main
