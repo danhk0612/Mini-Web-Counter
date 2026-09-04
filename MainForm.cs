@@ -20,6 +20,7 @@ public sealed class MainForm : Form
     private readonly Button _settingsButton = new();
     private readonly FlowLayoutPanel _cardsPanel = new();
     private readonly NotifyIcon _notifyIcon = new();
+    private readonly ToolStripMenuItem _trayTitleItem = new();
     private readonly ToolStripMenuItem _displayItemsMenu = new("표시 항목");
     private readonly Dictionary<string, StatusCard> _cards = new(StringComparer.Ordinal);
     private readonly Dictionary<string, decimal> _lastValues = new(StringComparer.Ordinal);
@@ -34,7 +35,7 @@ public sealed class MainForm : Form
     {
         _settings = _settingsService.Load();
 
-        Text = "JCMS Mini Monitoring";
+        Text = GetProgramName();
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
@@ -87,10 +88,9 @@ public sealed class MainForm : Form
     {
         var menu = new ContextMenuStrip();
 
-        menu.Items.Add(new ToolStripMenuItem("상태 모니터")
-        {
-            Enabled = false
-        });
+        _trayTitleItem.Text = GetProgramName();
+        _trayTitleItem.Enabled = false;
+        menu.Items.Add(_trayTitleItem);
         menu.Items.Add(new ToolStripSeparator());
 
         var showItem = new ToolStripMenuItem("화면 표시");
@@ -108,7 +108,7 @@ public sealed class MainForm : Form
         exitItem.Click += (_, _) => ExitApplication();
         menu.Items.Add(exitItem);
 
-        _notifyIcon.Text = "JCMS Mini Monitoring";
+        _notifyIcon.Text = GetNotifyIconText(GetProgramName());
         _notifyIcon.Icon = SystemIcons.Application;
         _notifyIcon.ContextMenuStrip = menu;
         _notifyIcon.Visible = true;
@@ -160,11 +160,21 @@ public sealed class MainForm : Form
         _settings.Items ??= [];
         _settings.ScalePercent = Math.Clamp(_settings.ScalePercent, 50, 200);
 
+        ApplyProgramName();
         ApplyScaleToHeader();
         RebuildCards();
         RebuildTrayItems();
         UpdateValues();
         UpdateWindowSize();
+    }
+
+    private void ApplyProgramName()
+    {
+        var programName = GetProgramName();
+        _settings.ProgramName = programName;
+        Text = programName;
+        _trayTitleItem.Text = programName;
+        _notifyIcon.Text = GetNotifyIconText(programName);
     }
 
     private void ApplyScaleToHeader()
@@ -490,6 +500,18 @@ public sealed class MainForm : Form
     private static int Scale(int value, float scale)
     {
         return Math.Max(1, (int)Math.Round(value * scale));
+    }
+
+    private string GetProgramName()
+    {
+        return string.IsNullOrWhiteSpace(_settings.ProgramName)
+            ? AppSettings.DefaultProgramName
+            : _settings.ProgramName.Trim();
+    }
+
+    private static string GetNotifyIconText(string programName)
+    {
+        return programName.Length <= 63 ? programName : programName[..63];
     }
 
     private static string GetDisplayName(MonitoringItem item)
