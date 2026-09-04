@@ -1,6 +1,6 @@
-using JCMS_Mini_Monitoring.Models;
+using MiniWebCounter.Models;
 
-namespace JCMS_Mini_Monitoring;
+namespace MiniWebCounter;
 
 public sealed class SettingsForm : Form
 {

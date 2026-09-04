@@ -6,8 +6,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>JCMS_Mini_Monitoring</AssemblyName>
-    <RootNamespace>JCMS_Mini_Monitoring</RootNamespace>
+    <AssemblyName>Mini-Web-Counter</AssemblyName>
+    <RootNamespace>MiniWebCounter</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

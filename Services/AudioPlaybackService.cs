@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace JCMS_Mini_Monitoring.Services;
+namespace MiniWebCounter.Services;
 
 public sealed class AudioPlaybackService : IDisposable
 {
@@ -62,7 +62,7 @@ public sealed class AudioPlaybackService : IDisposable
     private static string CreateAlias(string key)
     {
         var hash = StringComparer.Ordinal.GetHashCode(key);
-        return $"jcms_{unchecked((uint)hash):X8}";
+        return $"mwc_{unchecked((uint)hash):X8}";
     }
 
     private static int SendCommand(string command)

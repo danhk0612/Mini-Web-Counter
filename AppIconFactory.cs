@@ -1,7 +1,7 @@
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 
-namespace JCMS_Mini_Monitoring;
+namespace MiniWebCounter;
 
 internal static class AppIconFactory
 {

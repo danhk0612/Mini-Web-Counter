@@ -1,7 +1,7 @@
-using JCMS_Mini_Monitoring.Models;
-using JCMS_Mini_Monitoring.Services;
+using MiniWebCounter.Models;
+using MiniWebCounter.Services;
 
-namespace JCMS_Mini_Monitoring;
+namespace MiniWebCounter;
 
 internal static class Program
 {
@@ -10,7 +10,7 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
 
-        using var singleInstanceMutex = new Mutex(true, "JCMS_Mini_Monitoring_SingleInstance", out var isFirstInstance);
+        using var singleInstanceMutex = new Mutex(true, "MiniWebCounter_SingleInstance", out var isFirstInstance);
         if (!isFirstInstance)
         {
             var settings = new SettingsService().Load();

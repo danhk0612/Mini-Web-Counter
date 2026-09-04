@@ -1,4 +1,4 @@
-namespace JCMS_Mini_Monitoring.Models;
+namespace MiniWebCounter.Models;
 
 public sealed class AppSettings
 {

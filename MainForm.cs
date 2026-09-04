@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
-using JCMS_Mini_Monitoring.Models;
-using JCMS_Mini_Monitoring.Services;
+using MiniWebCounter.Models;
+using MiniWebCounter.Services;
 
-namespace JCMS_Mini_Monitoring;
+namespace MiniWebCounter;
 
 public sealed class MainForm : Form
 {

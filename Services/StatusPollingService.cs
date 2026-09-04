@@ -1,7 +1,7 @@
 using System.Text.Json;
-using JCMS_Mini_Monitoring.Models;
+using MiniWebCounter.Models;
 
-namespace JCMS_Mini_Monitoring.Services;
+namespace MiniWebCounter.Services;
 
 public sealed class StatusPollingService : IDisposable
 {
