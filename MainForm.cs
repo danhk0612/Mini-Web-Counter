@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
-using System.Media;
 using JCMS_Mini_Monitoring.Models;
 using JCMS_Mini_Monitoring.Services;
 
@@ -15,6 +14,7 @@ public sealed class MainForm : Form
 
     private readonly SettingsService _settingsService = new();
     private readonly StatusPollingService _pollingService = new();
+    private readonly AudioPlaybackService _audioPlaybackService = new();
     private readonly System.Windows.Forms.Timer _pollingTimer = new();
     private readonly System.Windows.Forms.Timer _flashTimer = new() { Interval = 150 };
     private readonly FlowLayoutPanel _cardsPanel = new();
@@ -23,7 +23,6 @@ public sealed class MainForm : Form
     private readonly ToolStripMenuItem _displayItemsMenu = new("표시 항목");
     private readonly Dictionary<string, StatusCard> _cards = new(StringComparer.Ordinal);
     private readonly Dictionary<string, decimal> _lastValues = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, SoundPlayer> _soundPlayers = new(StringComparer.Ordinal);
     private readonly HashSet<string> _mutedItems = new(StringComparer.Ordinal);
     private readonly Icon _appIcon = AppIconFactory.Create();
 
@@ -117,7 +116,6 @@ public sealed class MainForm : Form
 
             _settings = dialog.ResultSettings;
             _settingsService.Save(_settings);
-            DisposeSoundPlayers();
             ApplySettingsToUi();
             ConfigurePolling();
             await RefreshStatusAsync();
@@ -229,34 +227,38 @@ public sealed class MainForm : Form
         };
 
         var iconX = cardWidth - sidePadding - iconSize;
-        var linkButton = CreateIconButton(iconX, Scale(4, scale), iconSize, textColor);
-        linkButton.Cursor = string.IsNullOrWhiteSpace(item.LinkUrl) ? Cursors.Default : Cursors.Hand;
-        linkButton.Paint += (_, e) => DrawLinkIcon(e.Graphics, linkButton.ClientRectangle, textColor, scale);
-        linkButton.Click += (_, _) => OpenItemLink(item.LinkUrl);
-        panel.Controls.Add(linkButton);
+        var linkIcon = CreateIconPanel(iconX, Scale(4, scale), iconSize);
+        linkIcon.Cursor = string.IsNullOrWhiteSpace(item.LinkUrl) ? Cursors.Default : Cursors.Hand;
+        linkIcon.Paint += (_, e) => DrawLinkIcon(e.Graphics, linkIcon.ClientRectangle, textColor, scale);
+        linkIcon.Click += (_, _) => OpenItemLink(item.LinkUrl);
+        panel.Controls.Add(linkIcon);
 
-        Button? soundButton = null;
+        Panel? soundIcon = null;
         if (hasSound)
         {
             iconX -= iconSize + iconGap;
-            soundButton = CreateIconButton(iconX, Scale(4, scale), iconSize, textColor);
-            soundButton.Cursor = Cursors.Hand;
-            soundButton.Paint += (_, e) => DrawSoundIcon(
+            soundIcon = CreateIconPanel(iconX, Scale(4, scale), iconSize);
+            soundIcon.Cursor = Cursors.Hand;
+            soundIcon.Paint += (_, e) => DrawSoundIcon(
                 e.Graphics,
-                soundButton.ClientRectangle,
+                soundIcon.ClientRectangle,
                 textColor,
                 _mutedItems.Contains(item.ValueName),
                 scale);
-            soundButton.Click += (_, _) =>
+            soundIcon.Click += (_, _) =>
             {
                 if (!_mutedItems.Add(item.ValueName))
                 {
                     _mutedItems.Remove(item.ValueName);
                 }
+                else
+                {
+                    _audioPlaybackService.Stop(item.ValueName);
+                }
 
-                soundButton.Invalidate();
+                soundIcon.Invalidate();
             };
-            panel.Controls.Add(soundButton);
+            panel.Controls.Add(soundIcon);
         }
 
         var valueLabel = new Label
@@ -273,25 +275,18 @@ public sealed class MainForm : Form
         panel.Controls.Add(titleLabel);
         panel.Controls.Add(valueLabel);
 
-        return new StatusCard(panel, valueLabel, baseBackgroundColor, soundButton);
+        return new StatusCard(panel, valueLabel, baseBackgroundColor);
     }
 
-    private static Button CreateIconButton(int x, int y, int size, Color foreColor)
+    private static Panel CreateIconPanel(int x, int y, int size)
     {
-        var button = new Button
+        return new Panel
         {
             Location = new Point(x, y),
             Size = new Size(size, size),
-            FlatStyle = FlatStyle.Flat,
             BackColor = Color.Transparent,
-            ForeColor = foreColor,
-            TabStop = false,
-            UseVisualStyleBackColor = false
+            TabStop = false
         };
-        button.FlatAppearance.BorderSize = 0;
-        button.FlatAppearance.MouseDownBackColor = Color.Transparent;
-        button.FlatAppearance.MouseOverBackColor = Color.Transparent;
-        return button;
     }
 
     private static void DrawLinkIcon(Graphics graphics, Rectangle bounds, Color color, float scale)
@@ -454,19 +449,7 @@ public sealed class MainForm : Form
 
             try
             {
-                if (!_soundPlayers.TryGetValue(item.ValueName, out var player) ||
-                    !string.Equals(player.SoundLocation, path, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (player is not null)
-                    {
-                        player.Dispose();
-                    }
-
-                    player = new SoundPlayer(path);
-                    _soundPlayers[item.ValueName] = player;
-                }
-
-                player.Play();
+                _audioPlaybackService.Play(item.ValueName, path);
             }
             catch
             {
@@ -485,16 +468,6 @@ public sealed class MainForm : Form
 
         var baseDirectory = Path.GetDirectoryName(Application.ExecutablePath) ?? AppContext.BaseDirectory;
         return Path.Combine(baseDirectory, trimmed);
-    }
-
-    private void DisposeSoundPlayers()
-    {
-        foreach (var player in _soundPlayers.Values)
-        {
-            player.Dispose();
-        }
-
-        _soundPlayers.Clear();
     }
 
     private void FlashTimer_Tick(object? sender, EventArgs e)
@@ -651,7 +624,7 @@ public sealed class MainForm : Form
         _pollingTimer.Dispose();
         _flashTimer.Stop();
         _flashTimer.Dispose();
-        DisposeSoundPlayers();
+        _audioPlaybackService.Dispose();
         _pollingService.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
@@ -734,18 +707,16 @@ public sealed class MainForm : Form
 
     private sealed class StatusCard
     {
-        public StatusCard(Panel container, Label valueLabel, Color baseBackgroundColor, Button? soundButton)
+        public StatusCard(Panel container, Label valueLabel, Color baseBackgroundColor)
         {
             Container = container;
             ValueLabel = valueLabel;
             BaseBackgroundColor = baseBackgroundColor;
-            SoundButton = soundButton;
         }
 
         public Panel Container { get; }
         public Label ValueLabel { get; }
         public Color BaseBackgroundColor { get; }
-        public Button? SoundButton { get; }
         public decimal? CurrentValue { get; set; }
         public bool IsFlashing { get; set; }
         public DateTime FlashUntilUtc { get; set; }
