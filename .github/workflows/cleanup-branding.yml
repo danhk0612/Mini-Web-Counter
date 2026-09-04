@@ -20,7 +20,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Normalize names
+      - name: Normalize project names
         shell: pwsh
         run: |
           if (Test-Path 'JCMS_Mini_Monitoring.csproj') {
@@ -28,9 +28,9 @@ jobs:
           }
 
           $textFiles = Get-ChildItem -Recurse -File | Where-Object {
-            $_.Extension -in '.cs', '.csproj', '.yml', '.yaml', '.md', '.json' -and
+            $_.Extension -in '.cs', '.csproj', '.md', '.json' -and
             $_.FullName -notlike '*\.git\*' -and
-            $_.Name -ne 'cleanup-branding.yml'
+            $_.FullName -notlike '*\.github\workflows\*'
           }
 
           foreach ($file in $textFiles) {
@@ -50,26 +50,14 @@ jobs:
           $project = [regex]::Replace($project, '<RootNamespace>.*?</RootNamespace>', '<RootNamespace>MiniWebCounter</RootNamespace>')
           [System.IO.File]::WriteAllText((Resolve-Path $projectPath), $project, [System.Text.UTF8Encoding]::new($false))
 
-          $releasePath = '.github/workflows/release.yml'
-          if (Test-Path $releasePath) {
-            $release = Get-Content $releasePath -Raw -Encoding UTF8
-            $release = $release.Replace('.\MiniWebCounter.csproj', '.\Mini-Web-Counter.csproj')
-            $release = $release.Replace('.\publish\MiniWebCounter.exe', '.\publish\Mini-Web-Counter.exe')
-            $release = [regex]::Replace(
-              $release,
-              '(?ms)^on:\s*\n\s*push:.*?\n\s*workflow_dispatch:\s*$',
-              "on:`n  workflow_dispatch:"
-            )
-            [System.IO.File]::WriteAllText((Resolve-Path $releasePath), $release, [System.Text.UTF8Encoding]::new($false))
-          }
-
           $remaining = Get-ChildItem -Recurse -File | Where-Object {
-            $_.FullName -notlike '*\.git\*' -and $_.Name -ne 'cleanup-branding.yml'
+            $_.FullName -notlike '*\.git\*' -and
+            $_.FullName -notlike '*\.github\workflows\*'
           } | Select-String -Pattern 'JCMS_Mini_Monitoring|JCMS 미니 카운터|jcms_' -SimpleMatch:$false
 
           if ($remaining) {
             $remaining | ForEach-Object { Write-Host $_ }
-            throw 'Legacy branding remains in the working tree.'
+            throw 'Legacy branding remains in project files.'
           }
 
       - name: Setup .NET 8
@@ -80,12 +68,11 @@ jobs:
       - name: Build verification
         run: dotnet build .\Mini-Web-Counter.csproj -c Release
 
-      - name: Commit cleanup and remove one-time workflow
+      - name: Commit project cleanup
         shell: pwsh
         run: |
-          git rm '.github/workflows/cleanup-branding.yml'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
+          git add -A -- ':!/.github/workflows'
           git commit -m 'Normalize Mini Web Counter project naming'
           git push origin HEAD:main
