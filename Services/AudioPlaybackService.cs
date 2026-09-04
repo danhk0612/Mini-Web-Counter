@@ -7,7 +7,7 @@ public sealed class AudioPlaybackService : IDisposable
 {
     private readonly HashSet<string> _openAliases = new(StringComparer.Ordinal);
 
-    public void Play(string key, string filePath)
+    public void PlayLooping(string key, string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
         {
@@ -29,7 +29,7 @@ public sealed class AudioPlaybackService : IDisposable
         }
 
         _openAliases.Add(alias);
-        SendCommand($"play {alias} from 0");
+        SendCommand($"play {alias} from 0 repeat");
     }
 
     public void Stop(string key)
@@ -37,12 +37,17 @@ public sealed class AudioPlaybackService : IDisposable
         CloseAlias(CreateAlias(key));
     }
 
-    public void Dispose()
+    public void StopAll()
     {
         foreach (var alias in _openAliases.ToArray())
         {
             CloseAlias(alias);
         }
+    }
+
+    public void Dispose()
+    {
+        StopAll();
     }
 
     private void CloseAlias(string alias)
