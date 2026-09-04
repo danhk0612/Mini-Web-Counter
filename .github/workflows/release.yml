@@ -1,0 +1,129 @@
+name: Build and Release v1.0.0
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Hide link icon when URL is empty
+        shell: pwsh
+        run: |
+          $path = 'MainForm.cs'
+          $text = Get-Content $path -Raw -Encoding UTF8
+
+          $old1 = @'
+          var hasSound = !string.IsNullOrWhiteSpace(item.SoundFile);
+          var iconCount = hasSound ? 2 : 1;
+          var iconAreaWidth = iconCount * iconSize + Math.Max(0, iconCount - 1) * iconGap;
+          '@
+          $new1 = @'
+          var hasLink = !string.IsNullOrWhiteSpace(item.LinkUrl);
+          var hasSound = !string.IsNullOrWhiteSpace(item.SoundFile);
+          var iconCount = (hasLink ? 1 : 0) + (hasSound ? 1 : 0);
+          var iconAreaWidth = iconCount * iconSize + Math.Max(0, iconCount - 1) * iconGap;
+          '@
+          $text = $text.Replace($old1.Trim(), $new1.Trim())
+
+          $old2 = @'
+          var iconX = cardWidth - sidePadding - iconSize;
+          var linkIcon = CreateIconPanel(iconX, Scale(4, scale), iconSize);
+          linkIcon.Cursor = string.IsNullOrWhiteSpace(item.LinkUrl) ? Cursors.Default : Cursors.Hand;
+          linkIcon.Paint += (_, e) => DrawLinkIcon(e.Graphics, linkIcon.ClientRectangle, textColor, scale);
+          linkIcon.Click += (_, _) => OpenItemLink(item.LinkUrl);
+          panel.Controls.Add(linkIcon);
+
+          Panel? soundIcon = null;
+          if (hasSound)
+          {
+              iconX -= iconSize + iconGap;
+          '@
+          $new2 = @'
+          var iconX = cardWidth - sidePadding - iconSize;
+          if (hasLink)
+          {
+              var linkIcon = CreateIconPanel(iconX, Scale(4, scale), iconSize);
+              linkIcon.Cursor = Cursors.Hand;
+              linkIcon.Paint += (_, e) => DrawLinkIcon(e.Graphics, linkIcon.ClientRectangle, textColor, scale);
+              linkIcon.Click += (_, _) => OpenItemLink(item.LinkUrl);
+              panel.Controls.Add(linkIcon);
+          }
+
+          Panel? soundIcon = null;
+          if (hasSound)
+          {
+              if (hasLink)
+              {
+                  iconX -= iconSize + iconGap;
+              }
+          '@
+          $text = $text.Replace($old2.Trim(), $new2.Trim())
+
+          Set-Content $path $text -Encoding UTF8
+
+          if (git diff --quiet -- MainForm.cs) {
+            Write-Host 'MainForm.cs already up to date.'
+          } else {
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add MainForm.cs
+            git commit -m 'Hide link icon when URL is empty [skip ci]'
+            git push origin HEAD:main
+          }
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Publish Windows x64
+        shell: pwsh
+        run: |
+          dotnet publish .\JCMS_Mini_Monitoring.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:DebugType=None `
+            -p:DebugSymbols=false `
+            -o .\publish
+
+      - name: Create ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path .\publish\* -DestinationPath .\JCMS_Mini_Counter-v1.0.0-win-x64.zip -Force
+
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'v1.0.0'
+          $zip = '.\JCMS_Mini_Counter-v1.0.0-win-x64.zip'
+          $exe = '.\publish\JCMS_Mini_Monitoring.exe'
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag $zip $exe --target $env:GITHUB_SHA --title 'JCMS 미니 카운터 v1.0.0' --notes '첫 배포 버전. Windows 10/11 x64용 self-contained 빌드이며 .NET 런타임 별도 설치가 필요하지 않습니다.'
+          } else {
+            gh release upload $tag $zip $exe --clobber
+          }
