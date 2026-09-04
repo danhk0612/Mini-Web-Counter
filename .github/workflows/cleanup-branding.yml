@@ -35,10 +35,9 @@ jobs:
 
           foreach ($file in $textFiles) {
             $text = Get-Content $file.FullName -Raw -Encoding UTF8
-            $updated = $text
-              .Replace('JCMS_Mini_Monitoring', 'MiniWebCounter')
-              .Replace('JCMS 미니 카운터', 'Mini Web Counter')
-              .Replace('jcms_', 'mwc_')
+            $updated = $text.Replace('JCMS_Mini_Monitoring', 'MiniWebCounter')
+            $updated = $updated.Replace('JCMS 미니 카운터', 'Mini Web Counter')
+            $updated = $updated.Replace('jcms_', 'mwc_')
 
             if ($updated -ne $text) {
               [System.IO.File]::WriteAllText($file.FullName, $updated, [System.Text.UTF8Encoding]::new($false))
