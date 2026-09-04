@@ -30,9 +30,12 @@ jobs:
         run: |
           $path = 'MainForm.cs'
           $text = Get-Content $path -Raw -Encoding UTF8
-          $text = $text.Replace('_audioPlaybackService.Play(item.ValueName, path);', '_audioPlaybackService.PlayLooping(item.ValueName, path);')
-          $text = $text.Replace('_statusData = data;`r`n            UpdateValues();', '_statusData = data;`r`n            _audioPlaybackService.StopAll();`r`n            UpdateValues();')
-          $text = $text.Replace('_statusData = data;`n            UpdateValues();', '_statusData = data;`n            _audioPlaybackService.StopAll();`n            UpdateValues();')
+          $text = [regex]::Replace($text, '_audioPlaybackService\.Play\(item\.ValueName, path\);', '_audioPlaybackService.PlayLooping(item.ValueName, path);')
+          $text = [regex]::Replace(
+            $text,
+            '_statusData = data;\r?\n(?<indent>\s*)UpdateValues\(\);',
+            { param($m) "_statusData = data;`r`n$($m.Groups['indent'].Value)_audioPlaybackService.StopAll();`r`n$($m.Groups['indent'].Value)UpdateValues();" }
+          )
 
           if ($text -notmatch 'PlayLooping\(item\.ValueName, path\)' -or $text -notmatch '_audioPlaybackService\.StopAll\(\);') {
             throw 'Polling audio patch failed.'
