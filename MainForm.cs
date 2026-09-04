@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Drawing.Drawing2D;
+using System.Media;
 using JCMS_Mini_Monitoring.Models;
 using JCMS_Mini_Monitoring.Services;
 
@@ -20,6 +23,8 @@ public sealed class MainForm : Form
     private readonly ToolStripMenuItem _displayItemsMenu = new("표시 항목");
     private readonly Dictionary<string, StatusCard> _cards = new(StringComparer.Ordinal);
     private readonly Dictionary<string, decimal> _lastValues = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, SoundPlayer> _soundPlayers = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _mutedItems = new(StringComparer.Ordinal);
     private readonly Icon _appIcon = AppIconFactory.Create();
 
     private AppSettings _settings;
@@ -112,6 +117,7 @@ public sealed class MainForm : Form
 
             _settings = dialog.ResultSettings;
             _settingsService.Save(_settings);
+            DisposeSoundPlayers();
             ApplySettingsToUi();
             ConfigurePolling();
             await RefreshStatusAsync();
@@ -194,8 +200,13 @@ public sealed class MainForm : Form
         var cardWidth = Scale(BaseCardWidth, scale);
         var cardHeight = Scale(BaseCardHeight, scale);
         var sidePadding = Scale(8, scale);
+        var iconSize = Scale(22, scale);
+        var iconGap = Scale(2, scale);
         var baseBackgroundColor = ParseColor(item.BackgroundColor, Color.DimGray);
         var textColor = ParseColor(item.TextColor, Color.White);
+        var hasSound = !string.IsNullOrWhiteSpace(item.SoundFile);
+        var iconCount = hasSound ? 2 : 1;
+        var iconAreaWidth = iconCount * iconSize + Math.Max(0, iconCount - 1) * iconGap;
 
         var panel = new Panel
         {
@@ -213,9 +224,40 @@ public sealed class MainForm : Form
             Font = new Font("Segoe UI", 12.5F * scale, FontStyle.Bold),
             TextAlign = ContentAlignment.MiddleLeft,
             AutoEllipsis = true,
-            Size = new Size(cardWidth - sidePadding * 2, Scale(28, scale)),
+            Size = new Size(Math.Max(20, cardWidth - sidePadding * 2 - iconAreaWidth - Scale(4, scale)), Scale(28, scale)),
             Location = new Point(sidePadding, Scale(3, scale))
         };
+
+        var iconX = cardWidth - sidePadding - iconSize;
+        var linkButton = CreateIconButton(iconX, Scale(4, scale), iconSize, textColor);
+        linkButton.Cursor = string.IsNullOrWhiteSpace(item.LinkUrl) ? Cursors.Default : Cursors.Hand;
+        linkButton.Paint += (_, e) => DrawLinkIcon(e.Graphics, linkButton.ClientRectangle, textColor, scale);
+        linkButton.Click += (_, _) => OpenItemLink(item.LinkUrl);
+        panel.Controls.Add(linkButton);
+
+        Button? soundButton = null;
+        if (hasSound)
+        {
+            iconX -= iconSize + iconGap;
+            soundButton = CreateIconButton(iconX, Scale(4, scale), iconSize, textColor);
+            soundButton.Cursor = Cursors.Hand;
+            soundButton.Paint += (_, e) => DrawSoundIcon(
+                e.Graphics,
+                soundButton.ClientRectangle,
+                textColor,
+                _mutedItems.Contains(item.ValueName),
+                scale);
+            soundButton.Click += (_, _) =>
+            {
+                if (!_mutedItems.Add(item.ValueName))
+                {
+                    _mutedItems.Remove(item.ValueName);
+                }
+
+                soundButton.Invalidate();
+            };
+            panel.Controls.Add(soundButton);
+        }
 
         var valueLabel = new Label
         {
@@ -231,7 +273,98 @@ public sealed class MainForm : Form
         panel.Controls.Add(titleLabel);
         panel.Controls.Add(valueLabel);
 
-        return new StatusCard(panel, valueLabel, baseBackgroundColor);
+        return new StatusCard(panel, valueLabel, baseBackgroundColor, soundButton);
+    }
+
+    private static Button CreateIconButton(int x, int y, int size, Color foreColor)
+    {
+        var button = new Button
+        {
+            Location = new Point(x, y),
+            Size = new Size(size, size),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.Transparent,
+            ForeColor = foreColor,
+            TabStop = false,
+            UseVisualStyleBackColor = false
+        };
+        button.FlatAppearance.BorderSize = 0;
+        button.FlatAppearance.MouseDownBackColor = Color.Transparent;
+        button.FlatAppearance.MouseOverBackColor = Color.Transparent;
+        return button;
+    }
+
+    private static void DrawLinkIcon(Graphics graphics, Rectangle bounds, Color color, float scale)
+    {
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var pen = new Pen(color, Math.Max(1.4F, 1.6F * scale))
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+
+        var w = bounds.Width;
+        var h = bounds.Height;
+        var r1 = new RectangleF(w * 0.18F, h * 0.39F, w * 0.42F, h * 0.28F);
+        var r2 = new RectangleF(w * 0.40F, h * 0.25F, w * 0.42F, h * 0.28F);
+        graphics.DrawArc(pen, r1, 120, 240);
+        graphics.DrawArc(pen, r2, 300, 240);
+        graphics.DrawLine(pen, w * 0.40F, h * 0.55F, w * 0.61F, h * 0.42F);
+    }
+
+    private static void DrawSoundIcon(Graphics graphics, Rectangle bounds, Color color, bool muted, float scale)
+    {
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var pen = new Pen(color, Math.Max(1.4F, 1.6F * scale))
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round
+        };
+        using var brush = new SolidBrush(color);
+
+        var w = bounds.Width;
+        var h = bounds.Height;
+        var speaker = new PointF[]
+        {
+            new(w * 0.20F, h * 0.43F),
+            new(w * 0.36F, h * 0.43F),
+            new(w * 0.54F, h * 0.28F),
+            new(w * 0.54F, h * 0.72F),
+            new(w * 0.36F, h * 0.57F),
+            new(w * 0.20F, h * 0.57F)
+        };
+        graphics.FillPolygon(brush, speaker);
+
+        if (muted)
+        {
+            graphics.DrawLine(pen, w * 0.66F, h * 0.36F, w * 0.86F, h * 0.64F);
+            graphics.DrawLine(pen, w * 0.86F, h * 0.36F, w * 0.66F, h * 0.64F);
+        }
+        else
+        {
+            graphics.DrawArc(pen, w * 0.51F, h * 0.34F, w * 0.22F, h * 0.32F, -55, 110);
+            graphics.DrawArc(pen, w * 0.50F, h * 0.24F, w * 0.38F, h * 0.52F, -55, 110);
+        }
+    }
+
+    private void OpenItemLink(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(url.Trim())
+            {
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // 링크를 열 수 없는 경우 아무 동작도 하지 않는다.
+        }
     }
 
     private void RebuildTrayItems()
@@ -297,6 +430,71 @@ public sealed class MainForm : Form
             _flashPhase = false;
             _flashTimer.Start();
         }
+    }
+
+    private void PlayActiveSounds()
+    {
+        foreach (var item in _settings.Items)
+        {
+            if (string.IsNullOrWhiteSpace(item.SoundFile) || _mutedItems.Contains(item.ValueName))
+            {
+                continue;
+            }
+
+            if (!_statusData.TryGetValue(item.ValueName, out var value) || value == 0)
+            {
+                continue;
+            }
+
+            var path = ResolveSoundPath(item.SoundFile);
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            try
+            {
+                if (!_soundPlayers.TryGetValue(item.ValueName, out var player) ||
+                    !string.Equals(player.SoundLocation, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (player is not null)
+                    {
+                        player.Dispose();
+                    }
+
+                    player = new SoundPlayer(path);
+                    _soundPlayers[item.ValueName] = player;
+                }
+
+                player.Play();
+            }
+            catch
+            {
+                // 알림음 재생 실패 시 다음 폴링에서 다시 시도한다.
+            }
+        }
+    }
+
+    private static string ResolveSoundPath(string soundFile)
+    {
+        var trimmed = soundFile.Trim();
+        if (Path.IsPathRooted(trimmed))
+        {
+            return trimmed;
+        }
+
+        var baseDirectory = Path.GetDirectoryName(Application.ExecutablePath) ?? AppContext.BaseDirectory;
+        return Path.Combine(baseDirectory, trimmed);
+    }
+
+    private void DisposeSoundPlayers()
+    {
+        foreach (var player in _soundPlayers.Values)
+        {
+            player.Dispose();
+        }
+
+        _soundPlayers.Clear();
     }
 
     private void FlashTimer_Tick(object? sender, EventArgs e)
@@ -407,6 +605,7 @@ public sealed class MainForm : Form
 
             _statusData = data;
             UpdateValues();
+            PlayActiveSounds();
         }
         catch
         {
@@ -452,6 +651,7 @@ public sealed class MainForm : Form
         _pollingTimer.Dispose();
         _flashTimer.Stop();
         _flashTimer.Dispose();
+        DisposeSoundPlayers();
         _pollingService.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
@@ -534,16 +734,18 @@ public sealed class MainForm : Form
 
     private sealed class StatusCard
     {
-        public StatusCard(Panel container, Label valueLabel, Color baseBackgroundColor)
+        public StatusCard(Panel container, Label valueLabel, Color baseBackgroundColor, Button? soundButton)
         {
             Container = container;
             ValueLabel = valueLabel;
             BaseBackgroundColor = baseBackgroundColor;
+            SoundButton = soundButton;
         }
 
         public Panel Container { get; }
         public Label ValueLabel { get; }
         public Color BaseBackgroundColor { get; }
+        public Button? SoundButton { get; }
         public decimal? CurrentValue { get; set; }
         public bool IsFlashing { get; set; }
         public DateTime FlashUntilUtc { get; set; }
