@@ -1,0 +1,35 @@
+name: Apply inactive window options
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/inactive-options-update.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch source
+        shell: pwsh
+        run: pwsh -File .github/scripts/add-inactive-options.ps1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build
+        run: dotnet build .\Mini-Web-Counter.csproj -c Release
+      - name: Commit changes
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Models/AppSettings.cs SettingsForm.cs MainForm.cs appsettings.json README.md
+          git commit -m 'Add inactive window appearance options'
+          git push origin HEAD:main
