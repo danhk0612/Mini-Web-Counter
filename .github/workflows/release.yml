@@ -1,13 +1,18 @@
-name: Build and Release v1.0.3
+name: Build and Release v1.0.4
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: mini-web-counter-release-v1.0.3
+  group: mini-web-counter-release-v1.0.4
   cancel-in-progress: true
 
 jobs:
@@ -44,15 +49,15 @@ jobs:
       - name: Create ZIP
         shell: pwsh
         run: |
-          Compress-Archive -Path .\publish\* -DestinationPath .\Mini-Web-Counter-v1.0.3-win-x64.zip -Force
+          Compress-Archive -Path .\publish\* -DestinationPath .\Mini-Web-Counter-v1.0.4-win-x64.zip -Force
 
       - name: Create GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v1.0.3'
-          $zip = '.\Mini-Web-Counter-v1.0.3-win-x64.zip'
+          $tag = 'v1.0.4'
+          $zip = '.\Mini-Web-Counter-v1.0.4-win-x64.zip'
           $exe = '.\publish\Mini-Web-Counter.exe'
           $target = (git rev-parse HEAD).Trim()
 
@@ -61,4 +66,4 @@ jobs:
             gh release delete $tag --yes --cleanup-tag
           }
 
-          gh release create $tag $zip $exe --target $target --title 'Mini Web Counter v1.0.3' --notes 'Windows EXE 자체에 전용 프로그램 아이콘을 포함하도록 수정했습니다. Mini Web Counter 명칭 정리와 README/배포 문서 정리를 완료했으며, Windows 10/11 x64 self-contained 배포본입니다.'
+          gh release create $tag $zip $exe --target $target --title 'Mini Web Counter v1.0.4' --notes '카드의 음소거 상태 아이콘을 밝은 회색으로 더 명확하게 표시하고, 외부 링크 아이콘을 창/브라우저 + 우상향 화살표 형태로 개선했습니다. Windows 10/11 x64 self-contained 배포본입니다.'
