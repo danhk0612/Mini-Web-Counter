@@ -1,13 +1,18 @@
-name: Build and Release v1.0.9
+name: Build and Release v1.0.10
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: mini-web-counter-release-v1.0.9
+  group: mini-web-counter-release-v1.0.10
   cancel-in-progress: true
 
 jobs:
@@ -44,15 +49,15 @@ jobs:
       - name: Create ZIP
         shell: pwsh
         run: |
-          Compress-Archive -Path .\publish\* -DestinationPath .\Mini-Web-Counter-v1.0.9-win-x64.zip -Force
+          Compress-Archive -Path .\publish\* -DestinationPath .\Mini-Web-Counter-v1.0.10-win-x64.zip -Force
 
       - name: Create GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v1.0.9'
-          $zip = '.\Mini-Web-Counter-v1.0.9-win-x64.zip'
+          $tag = 'v1.0.10'
+          $zip = '.\Mini-Web-Counter-v1.0.10-win-x64.zip'
           $exe = '.\publish\Mini-Web-Counter.exe'
           $target = (git rev-parse HEAD).Trim()
 
@@ -61,4 +66,4 @@ jobs:
             gh release delete $tag --yes --cleanup-tag
           }
 
-          gh release create $tag $zip $exe --target $target --title 'Mini Web Counter v1.0.9' --notes '설정 상단 옵션을 두 줄로 재배치해 Windows 시작 시 자동 실행 토글이 화면 밖으로 밀려 보이지 않던 문제를 수정했습니다. 표시 옵션과 비활성/시작 옵션을 분리해 DPI 및 창 너비 변화에도 안정적으로 보이도록 개선했습니다. Windows 10/11 x64 self-contained 배포본입니다.'
+          gh release create $tag $zip $exe --target $target --title 'Mini Web Counter v1.0.10' --notes '설정 변경과 알림음 재생 상태를 즉시 동기화하도록 수정했습니다. 비활성 또는 삭제된 항목, 알림음 파일 제거/변경, 데이터 URL 제거 시 기존 사운드를 즉시 정리하고, 음소거 해제 시 현재 값이 활성 상태라면 즉시 재생을 재개합니다. Windows 10/11 x64 self-contained 배포본입니다.'
