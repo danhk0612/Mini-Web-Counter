@@ -6,39 +6,69 @@ namespace MiniWebCounter.Services;
 public sealed class AudioPlaybackService : IDisposable
 {
     private readonly HashSet<string> _openAliases = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _playingPaths = new(StringComparer.Ordinal);
 
     public void PlayLooping(string key, string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
         {
+            Stop(key);
             return;
         }
 
-        var alias = CreateAlias(key);
-        CloseAlias(alias);
+        var normalizedPath = Path.GetFullPath(filePath);
+        if (_playingPaths.TryGetValue(key, out var currentPath) &&
+            string.Equals(currentPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
 
-        var extension = Path.GetExtension(filePath);
+        Stop(key);
+
+        var alias = CreateAlias(key);
+        var extension = Path.GetExtension(normalizedPath);
         var deviceType = string.Equals(extension, ".wav", StringComparison.OrdinalIgnoreCase)
             ? "waveaudio"
             : "mpegvideo";
 
-        var escapedPath = filePath.Replace("\"", "\"\"");
+        var escapedPath = normalizedPath.Replace("\"", "\"\"");
         if (SendCommand($"open \"{escapedPath}\" type {deviceType} alias {alias}") != 0)
         {
             return;
         }
 
         _openAliases.Add(alias);
-        SendCommand($"play {alias} from 0 repeat");
+        if (SendCommand($"play {alias} from 0 repeat") != 0)
+        {
+            CloseAlias(alias);
+            return;
+        }
+
+        _playingPaths[key] = normalizedPath;
+    }
+
+    public void SynchronizeLooping(IReadOnlyDictionary<string, string> desired)
+    {
+        foreach (var key in _playingPaths.Keys.Where(key => !desired.ContainsKey(key)).ToArray())
+        {
+            Stop(key);
+        }
+
+        foreach (var pair in desired)
+        {
+            PlayLooping(pair.Key, pair.Value);
+        }
     }
 
     public void Stop(string key)
     {
+        _playingPaths.Remove(key);
         CloseAlias(CreateAlias(key));
     }
 
     public void StopAll()
     {
+        _playingPaths.Clear();
         foreach (var alias in _openAliases.ToArray())
         {
             CloseAlias(alias);

@@ -290,13 +290,9 @@ if (hasSound)
                 if (!_mutedItems.Add(item.ValueName))
                 {
                     _mutedItems.Remove(item.ValueName);
-                    PlayItemSoundIfActive(item);
-                }
-                else
-                {
-                    _audioPlaybackService.Stop(item.ValueName);
                 }
 
+                SyncAudioWithSettings();
                 soundIcon.Invalidate();
             };
             panel.Controls.Add(soundIcon);
@@ -489,11 +485,17 @@ if (hasSound)
             card.ValueLabel.Text = FormatValue(value);
             card.CurrentValue = value;
 
-            if (_lastValues.TryGetValue(pair.Key, out var previousValue) && previousValue != value)
+            if (_lastValues.TryGetValue(pair.Key, out var previousValue) &&
+                previousValue != value &&
+                value > 0)
             {
                 card.IsFlashing = true;
                 card.FlashUntilUtc = DateTime.UtcNow.AddSeconds(1);
                 hasActiveFlash = true;
+            }
+            else if (value == 0)
+            {
+                card.IsFlashing = false;
             }
 
             _lastValues[pair.Key] = value;
@@ -507,44 +509,6 @@ if (hasSound)
         }
     }
 
-    private void PlayActiveSounds()
-    {
-        foreach (var item in _settings.Items.Where(item => item.Visible))
-        {
-            PlayItemSoundIfActive(item);
-        }
-    }
-
-    private void PlayItemSoundIfActive(MonitoringItem item)
-    {
-        if (!item.Visible ||
-            string.IsNullOrWhiteSpace(item.SoundFile) ||
-            _mutedItems.Contains(item.ValueName))
-        {
-            return;
-        }
-
-        if (!_statusData.TryGetValue(item.ValueName, out var value) || value == 0)
-        {
-            return;
-        }
-
-        var path = ResolveSoundPath(item.SoundFile);
-        if (!File.Exists(path))
-        {
-            return;
-        }
-
-        try
-        {
-            _audioPlaybackService.PlayLooping(item.ValueName, path);
-        }
-        catch
-        {
-            // 알림음 재생 실패 시 다음 폴링에서 다시 시도한다.
-        }
-    }
-
     private void SyncAudioWithSettings()
     {
         var configuredKeys = _settings.Items
@@ -552,16 +516,30 @@ if (hasSound)
             .ToHashSet(StringComparer.Ordinal);
         _mutedItems.RemoveWhere(valueName => !configuredKeys.Contains(valueName));
 
-        _audioPlaybackService.StopAll();
-
-        if (string.IsNullOrWhiteSpace(_settings.DataUrl))
+        var desired = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (!string.IsNullOrWhiteSpace(_settings.DataUrl))
         {
-            return;
+            foreach (var item in _settings.Items)
+            {
+                if (!item.Visible ||
+                    string.IsNullOrWhiteSpace(item.SoundFile) ||
+                    _mutedItems.Contains(item.ValueName) ||
+                    !_statusData.TryGetValue(item.ValueName, out var value) ||
+                    value <= 0)
+                {
+                    continue;
+                }
+
+                var path = ResolveSoundPath(item.SoundFile);
+                if (File.Exists(path))
+                {
+                    desired[item.ValueName] = path;
+                }
+            }
         }
 
-        PlayActiveSounds();
+        _audioPlaybackService.SynchronizeLooping(desired);
     }
-
     private static string ResolveSoundPath(string soundFile)
     {
         var trimmed = soundFile.Trim();
@@ -685,9 +663,8 @@ if (hasSound)
             }
 
             _statusData = data;
-            _audioPlaybackService.StopAll();
             UpdateValues();
-            PlayActiveSounds();
+            SyncAudioWithSettings();
         }
         catch
         {
