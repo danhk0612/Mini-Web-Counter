@@ -36,12 +36,13 @@ public sealed class SettingsForm : Form
 
     private void BuildUi()
     {
-        var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(16), ColumnCount = 1, RowCount = 9 };
+        var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(16), ColumnCount = 1, RowCount = 10 };
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
@@ -55,44 +56,47 @@ public sealed class SettingsForm : Form
         _urlTextBox.Dock = DockStyle.Fill;
         root.Controls.Add(_urlTextBox, 0, 3);
 
-        var optionsPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(0, 9, 0, 0) };
-        optionsPanel.Controls.Add(CreateOptionLabel("폴링 주기"));
+        var displayOptionsPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(0, 4, 0, 0) };
+        displayOptionsPanel.Controls.Add(CreateOptionLabel("폴링 주기"));
         _pollingNumeric.Minimum = 1; _pollingNumeric.Maximum = 3600; _pollingNumeric.Width = 70;
-        optionsPanel.Controls.Add(_pollingNumeric);
-        optionsPanel.Controls.Add(CreateOptionLabel("초", 4, 5, 18));
-        optionsPanel.Controls.Add(CreateOptionLabel("배치", 10, 5, 6));
+        displayOptionsPanel.Controls.Add(_pollingNumeric);
+        displayOptionsPanel.Controls.Add(CreateOptionLabel("초", 4, 5, 18));
+        displayOptionsPanel.Controls.Add(CreateOptionLabel("배치", 10, 5, 6));
         _layoutComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
         _layoutComboBox.Items.AddRange(["세로형", "가로형"]);
         _layoutComboBox.Width = 90;
-        optionsPanel.Controls.Add(_layoutComboBox);
-        optionsPanel.Controls.Add(CreateOptionLabel("배율", 10, 5, 6));
+        displayOptionsPanel.Controls.Add(_layoutComboBox);
+        displayOptionsPanel.Controls.Add(CreateOptionLabel("배율", 10, 5, 6));
         _scaleNumeric.Minimum = 50; _scaleNumeric.Maximum = 200; _scaleNumeric.Increment = 10; _scaleNumeric.Width = 70;
-        optionsPanel.Controls.Add(_scaleNumeric);
-        optionsPanel.Controls.Add(CreateOptionLabel("%", 4, 5, 18));
-        optionsPanel.Controls.Add(CreateOptionLabel("프로그램 배경", 4, 5, 6));
+        displayOptionsPanel.Controls.Add(_scaleNumeric);
+        displayOptionsPanel.Controls.Add(CreateOptionLabel("%", 4, 5, 18));
+        displayOptionsPanel.Controls.Add(CreateOptionLabel("프로그램 배경", 4, 5, 6));
         _programBackgroundTextBox.Width = 95;
-        optionsPanel.Controls.Add(_programBackgroundTextBox);
+        displayOptionsPanel.Controls.Add(_programBackgroundTextBox);
+        root.Controls.Add(displayOptionsPanel, 0, 4);
+
+        var behaviorOptionsPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(0, 4, 0, 0) };
         _dimWhenInactiveCheckBox.Text = "비활성 시 반투명";
         _dimWhenInactiveCheckBox.AutoSize = true;
-        _dimWhenInactiveCheckBox.Margin = new Padding(12, 3, 6, 0);
-        optionsPanel.Controls.Add(_dimWhenInactiveCheckBox);
-        optionsPanel.Controls.Add(CreateOptionLabel("투명도", 4, 5, 4));
+        _dimWhenInactiveCheckBox.Margin = new Padding(0, 3, 6, 0);
+        behaviorOptionsPanel.Controls.Add(_dimWhenInactiveCheckBox);
+        behaviorOptionsPanel.Controls.Add(CreateOptionLabel("투명도", 4, 5, 4));
         _inactiveOpacityNumeric.Minimum = 20; _inactiveOpacityNumeric.Maximum = 100; _inactiveOpacityNumeric.Width = 60;
-        optionsPanel.Controls.Add(_inactiveOpacityNumeric);
-        optionsPanel.Controls.Add(CreateOptionLabel("%", 3, 5, 8));
+        behaviorOptionsPanel.Controls.Add(_inactiveOpacityNumeric);
+        behaviorOptionsPanel.Controls.Add(CreateOptionLabel("%", 3, 5, 14));
         _hideTitleBarWhenInactiveCheckBox.Text = "비활성 시 타이틀바 숨김";
         _hideTitleBarWhenInactiveCheckBox.AutoSize = true;
-        _hideTitleBarWhenInactiveCheckBox.Margin = new Padding(4, 3, 8, 0);
-        optionsPanel.Controls.Add(_hideTitleBarWhenInactiveCheckBox);
+        _hideTitleBarWhenInactiveCheckBox.Margin = new Padding(4, 3, 14, 0);
+        behaviorOptionsPanel.Controls.Add(_hideTitleBarWhenInactiveCheckBox);
         _startWithWindowsCheckBox.Text = "Windows 시작 시 자동 실행";
         _startWithWindowsCheckBox.AutoSize = true;
         _startWithWindowsCheckBox.Margin = new Padding(4, 3, 0, 0);
-        optionsPanel.Controls.Add(_startWithWindowsCheckBox);
-        root.Controls.Add(optionsPanel, 0, 4);
+        behaviorOptionsPanel.Controls.Add(_startWithWindowsCheckBox);
+        root.Controls.Add(behaviorOptionsPanel, 0, 5);
 
-        root.Controls.Add(new Label { Text = "색상은 #RRGGBB 형식으로 직접 입력합니다. 알림음은 WAV 또는 MP3 파일을 사용할 수 있습니다.", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 5);
+        root.Controls.Add(new Label { Text = "색상은 #RRGGBB 형식으로 직접 입력합니다. 알림음은 WAV 또는 MP3 파일을 사용할 수 있습니다.", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 6);
         ConfigureItemsGrid();
-        root.Controls.Add(_itemsGrid, 0, 6);
+        root.Controls.Add(_itemsGrid, 0, 7);
 
         var itemButtons = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(0, 6, 0, 0) };
         var addButton = new Button { Text = "항목 추가", Width = 90 };
@@ -107,7 +111,7 @@ public sealed class SettingsForm : Form
         itemButtons.Controls.Add(deleteButton);
         itemButtons.Controls.Add(moveUpButton);
         itemButtons.Controls.Add(moveDownButton);
-        root.Controls.Add(itemButtons, 0, 7);
+        root.Controls.Add(itemButtons, 0, 8);
 
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, WrapContents = false, Padding = new Padding(0, 8, 0, 0) };
         var cancelButton = new Button { Text = "취소", DialogResult = DialogResult.Cancel, Width = 80 };
@@ -115,7 +119,7 @@ public sealed class SettingsForm : Form
         saveButton.Click += SaveButton_Click;
         buttons.Controls.Add(cancelButton);
         buttons.Controls.Add(saveButton);
-        root.Controls.Add(buttons, 0, 8);
+        root.Controls.Add(buttons, 0, 9);
         AcceptButton = saveButton;
         CancelButton = cancelButton;
     }
