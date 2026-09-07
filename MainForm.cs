@@ -516,7 +516,7 @@ if (hasSound)
             .ToHashSet(StringComparer.Ordinal);
         _mutedItems.RemoveWhere(valueName => !configuredKeys.Contains(valueName));
 
-        var desired = new Dictionary<string, string>(StringComparer.Ordinal);
+        var desired = new Dictionary<string, AudioPlaybackRequest>(StringComparer.Ordinal);
         if (!string.IsNullOrWhiteSpace(_settings.DataUrl))
         {
             foreach (var item in _settings.Items)
@@ -533,12 +533,12 @@ if (hasSound)
                 var path = ResolveSoundPath(item.SoundFile);
                 if (File.Exists(path))
                 {
-                    desired[item.ValueName] = path;
+                    desired[item.ValueName] = new AudioPlaybackRequest(path, Math.Clamp(item.VolumePercent, 0, 100));
                 }
             }
         }
 
-        _audioPlaybackService.SynchronizeLooping(desired);
+        _audioPlaybackService.SynchronizeLooping(desired, _settings.AudioDeviceId, _settings.MasterVolumePercent);
     }
     private static string ResolveSoundPath(string soundFile)
     {

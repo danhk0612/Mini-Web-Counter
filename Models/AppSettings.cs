@@ -14,6 +14,8 @@ public sealed class AppSettings
     public int InactiveOpacityPercent { get; set; } = 75;
     public bool HideTitleBarWhenInactive { get; set; } = false;
     public bool StartWithWindows { get; set; } = false;
+    public int MasterVolumePercent { get; set; } = 100;
+    public string AudioDeviceId { get; set; } = string.Empty;
 
     public List<MonitoringItem> Items { get; set; } =
     [

@@ -8,5 +8,6 @@ public sealed class MonitoringItem
     public string TextColor { get; set; } = "#FFFFFF";
     public string LinkUrl { get; set; } = string.Empty;
     public string SoundFile { get; set; } = string.Empty;
+    public int VolumePercent { get; set; } = 100;
     public bool Visible { get; set; } = true;
 }

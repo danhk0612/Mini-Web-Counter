@@ -15,6 +15,9 @@ public sealed class SettingsForm : Form
     private readonly NumericUpDown _inactiveOpacityNumeric = new();
     private readonly CheckBox _hideTitleBarWhenInactiveCheckBox = new();
     private readonly CheckBox _startWithWindowsCheckBox = new();
+    private readonly NumericUpDown _masterVolumeNumeric = new();
+    private readonly ComboBox _audioDeviceComboBox = new();
+    private readonly Button _refreshAudioDevicesButton = new();
     private readonly DataGridView _itemsGrid = new();
 
     public AppSettings ResultSettings { get; private set; }
@@ -28,7 +31,7 @@ public sealed class SettingsForm : Form
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(1160, 620);
+        ClientSize = new Size(1160, 660);
         Font = new Font("Segoe UI", 9F);
         BuildUi();
         LoadSettings(settings);
@@ -36,11 +39,12 @@ public sealed class SettingsForm : Form
 
     private void BuildUi()
     {
-        var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(16), ColumnCount = 1, RowCount = 10 };
+        var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(16), ColumnCount = 1, RowCount = 11 };
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
@@ -94,9 +98,26 @@ public sealed class SettingsForm : Form
         behaviorOptionsPanel.Controls.Add(_startWithWindowsCheckBox);
         root.Controls.Add(behaviorOptionsPanel, 0, 5);
 
-        root.Controls.Add(new Label { Text = "색상은 #RRGGBB 형식으로 직접 입력합니다. 알림음은 WAV 또는 MP3 파일을 사용할 수 있습니다.", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 6);
+        var audioOptionsPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(0, 4, 0, 0) };
+        audioOptionsPanel.Controls.Add(CreateOptionLabel("전체 볼륨"));
+        _masterVolumeNumeric.Minimum = 0; _masterVolumeNumeric.Maximum = 100; _masterVolumeNumeric.Width = 70;
+        audioOptionsPanel.Controls.Add(_masterVolumeNumeric);
+        audioOptionsPanel.Controls.Add(CreateOptionLabel("%", 3, 5, 18));
+        audioOptionsPanel.Controls.Add(CreateOptionLabel("출력 장치", 4, 5, 6));
+        _audioDeviceComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        _audioDeviceComboBox.Width = 430;
+        audioOptionsPanel.Controls.Add(_audioDeviceComboBox);
+        _refreshAudioDevicesButton.Text = "새로고침";
+        _refreshAudioDevicesButton.Width = 80;
+        _refreshAudioDevicesButton.Height = 25;
+        _refreshAudioDevicesButton.Margin = new Padding(6, 0, 0, 0);
+        _refreshAudioDevicesButton.Click += (_, _) => RefreshAudioDevices();
+        audioOptionsPanel.Controls.Add(_refreshAudioDevicesButton);
+        root.Controls.Add(audioOptionsPanel, 0, 6);
+
+        root.Controls.Add(new Label { Text = "색상은 #RRGGBB 형식으로 직접 입력합니다. 알림음은 WAV 또는 MP3 파일을 사용할 수 있으며 항목별 볼륨은 0~100%입니다.", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 7);
         ConfigureItemsGrid();
-        root.Controls.Add(_itemsGrid, 0, 7);
+        root.Controls.Add(_itemsGrid, 0, 8);
 
         var itemButtons = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(0, 6, 0, 0) };
         var addButton = new Button { Text = "항목 추가", Width = 90 };
@@ -111,7 +132,7 @@ public sealed class SettingsForm : Form
         itemButtons.Controls.Add(deleteButton);
         itemButtons.Controls.Add(moveUpButton);
         itemButtons.Controls.Add(moveDownButton);
-        root.Controls.Add(itemButtons, 0, 8);
+        root.Controls.Add(itemButtons, 0, 9);
 
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, WrapContents = false, Padding = new Padding(0, 8, 0, 0) };
         var cancelButton = new Button { Text = "취소", DialogResult = DialogResult.Cancel, Width = 80 };
@@ -119,7 +140,7 @@ public sealed class SettingsForm : Form
         saveButton.Click += SaveButton_Click;
         buttons.Controls.Add(cancelButton);
         buttons.Controls.Add(saveButton);
-        root.Controls.Add(buttons, 0, 9);
+        root.Controls.Add(buttons, 0, 10);
         AcceptButton = saveButton;
         CancelButton = cancelButton;
     }
@@ -140,8 +161,9 @@ public sealed class SettingsForm : Form
         _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "ValueName", HeaderText = "값 이름", Width = 105 });
         _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "BackgroundColor", HeaderText = "배경 색", Width = 90 });
         _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "TextColor", HeaderText = "글자 색", Width = 90 });
-        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "LinkUrl", HeaderText = "링크 URL", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, MinimumWidth = 190 });
-        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "SoundFile", HeaderText = "알림음 파일", Width = 250 });
+        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "LinkUrl", HeaderText = "링크 URL", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, MinimumWidth = 150 });
+        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "VolumePercent", HeaderText = "볼륨 %", Width = 70 });
+        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "SoundFile", HeaderText = "알림음 파일", Width = 210 });
         _itemsGrid.Columns.Add(new DataGridViewButtonColumn { Name = "BrowseSound", HeaderText = "찾기", Text = "...", UseColumnTextForButtonValue = true, Width = 50, FlatStyle = FlatStyle.Popup });
         _itemsGrid.CellContentClick += ItemsGrid_CellContentClick;
     }
@@ -160,8 +182,37 @@ public sealed class SettingsForm : Form
         _inactiveOpacityNumeric.Value = Math.Clamp(settings.InactiveOpacityPercent, 20, 100);
         _hideTitleBarWhenInactiveCheckBox.Checked = settings.HideTitleBarWhenInactive;
         _startWithWindowsCheckBox.Checked = settings.StartWithWindows;
+        _masterVolumeNumeric.Value = Math.Clamp(settings.MasterVolumePercent, 0, 100);
+        RefreshAudioDevices(settings.AudioDeviceId);
         _itemsGrid.Rows.Clear();
         foreach (var item in settings.Items ?? []) AddItemRow(item);
+    }
+
+    private void RefreshAudioDevices(string? requestedDeviceId = null)
+    {
+        var selectedId = requestedDeviceId;
+        if (selectedId is null && _audioDeviceComboBox.SelectedItem is AudioOutputDevice selected)
+        {
+            selectedId = selected.Id;
+        }
+
+        selectedId ??= string.Empty;
+        var devices = AudioPlaybackService.GetOutputDevices().ToList();
+        if (!string.IsNullOrWhiteSpace(selectedId) &&
+            devices.All(device => !string.Equals(device.Id, selectedId, StringComparison.Ordinal)))
+        {
+            devices.Add(new AudioOutputDevice(selectedId, "저장된 출력 장치를 찾을 수 없음 (기본 장치로 대체됨)"));
+        }
+
+        _audioDeviceComboBox.DataSource = null;
+        _audioDeviceComboBox.DisplayMember = nameof(AudioOutputDevice.Name);
+        _audioDeviceComboBox.ValueMember = nameof(AudioOutputDevice.Id);
+        _audioDeviceComboBox.DataSource = devices;
+        _audioDeviceComboBox.SelectedValue = selectedId;
+        if (_audioDeviceComboBox.SelectedIndex < 0 && devices.Count > 0)
+        {
+            _audioDeviceComboBox.SelectedIndex = 0;
+        }
     }
 
     private void AddItemRow()
@@ -176,7 +227,7 @@ public sealed class SettingsForm : Form
     private void AddItemRow(MonitoringItem item)
     {
         var displayName = string.IsNullOrWhiteSpace(item.DisplayName) ? item.ValueName : item.DisplayName;
-        _itemsGrid.Rows.Add(item.Visible, displayName, item.ValueName, item.BackgroundColor, item.TextColor, item.LinkUrl, item.SoundFile, "...");
+        _itemsGrid.Rows.Add(item.Visible, displayName, item.ValueName, item.BackgroundColor, item.TextColor, item.LinkUrl, Math.Clamp(item.VolumePercent, 0, 100), item.SoundFile, "...");
     }
 
     private void DeleteSelectedItem()
@@ -224,6 +275,11 @@ public sealed class SettingsForm : Form
             if (!names.Add(valueName)) { MessageBox.Show(this, $"같은 값 이름을 중복해서 사용할 수 없습니다: {valueName}", "설정", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             var displayName = (Convert.ToString(row.Cells["DisplayName"].Value) ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(displayName)) displayName = valueName;
+            if (!int.TryParse(Convert.ToString(row.Cells["VolumePercent"].Value), out var itemVolume) || itemVolume < 0 || itemVolume > 100)
+            {
+                MessageBox.Show(this, $"항목별 볼륨은 0~100 사이의 숫자여야 합니다: {displayName}", "설정", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             items.Add(new MonitoringItem
             {
                 Visible = Convert.ToBoolean(row.Cells["Visible"].Value ?? true),
@@ -232,6 +288,7 @@ public sealed class SettingsForm : Form
                 BackgroundColor = (Convert.ToString(row.Cells["BackgroundColor"].Value) ?? "#666666").Trim(),
                 TextColor = (Convert.ToString(row.Cells["TextColor"].Value) ?? "#FFFFFF").Trim(),
                 LinkUrl = (Convert.ToString(row.Cells["LinkUrl"].Value) ?? string.Empty).Trim(),
+                VolumePercent = itemVolume,
                 SoundFile = (Convert.ToString(row.Cells["SoundFile"].Value) ?? string.Empty).Trim()
             });
         }
@@ -247,6 +304,8 @@ public sealed class SettingsForm : Form
             InactiveOpacityPercent = (int)_inactiveOpacityNumeric.Value,
             HideTitleBarWhenInactive = _hideTitleBarWhenInactiveCheckBox.Checked,
             StartWithWindows = _startWithWindowsCheckBox.Checked,
+            MasterVolumePercent = (int)_masterVolumeNumeric.Value,
+            AudioDeviceId = (_audioDeviceComboBox.SelectedItem as AudioOutputDevice)?.Id ?? string.Empty,
             Items = items
         };
         StartupService.Apply(ResultSettings.StartWithWindows);
@@ -266,6 +325,8 @@ public sealed class SettingsForm : Form
         InactiveOpacityPercent = source.InactiveOpacityPercent,
         HideTitleBarWhenInactive = source.HideTitleBarWhenInactive,
         StartWithWindows = source.StartWithWindows,
+        MasterVolumePercent = source.MasterVolumePercent,
+        AudioDeviceId = source.AudioDeviceId,
         Items = (source.Items ?? []).Select(item => new MonitoringItem
         {
             ValueName = item.ValueName,
@@ -274,6 +335,7 @@ public sealed class SettingsForm : Form
             TextColor = item.TextColor,
             LinkUrl = item.LinkUrl,
             SoundFile = item.SoundFile,
+            VolumePercent = item.VolumePercent,
             Visible = item.Visible
         }).ToList()
     };
