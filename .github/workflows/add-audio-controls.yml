@@ -27,6 +27,8 @@ jobs:
         run: dotnet restore .\Mini-Web-Counter.csproj
       - name: Build
         run: dotnet build .\Mini-Web-Counter.csproj -c Release --no-restore
+      - name: Restore Windows x64
+        run: dotnet restore .\Mini-Web-Counter.csproj -r win-x64
       - name: Publish Windows x64 smoke test
         shell: pwsh
         run: dotnet publish .\Mini-Web-Counter.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --no-restore -o .\publish-test
