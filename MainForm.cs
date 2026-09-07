@@ -124,6 +124,7 @@ public sealed class MainForm : Form
             _settingsService.Save(_settings);
             ApplySettingsToUi();
             ConfigurePolling();
+            SyncAudioWithSettings();
             await RefreshStatusAsync();
         }
         finally
@@ -145,6 +146,7 @@ public sealed class MainForm : Form
         item.Visible = visible;
         _settingsService.Save(_settings);
         ApplySettingsToUi();
+        SyncAudioWithSettings();
     }
 
     private void ApplySettingsToUi()
@@ -288,6 +290,7 @@ if (hasSound)
                 if (!_mutedItems.Add(item.ValueName))
                 {
                     _mutedItems.Remove(item.ValueName);
+                    PlayItemSoundIfActive(item);
                 }
                 else
                 {
@@ -506,33 +509,57 @@ if (hasSound)
 
     private void PlayActiveSounds()
     {
-        foreach (var item in _settings.Items)
+        foreach (var item in _settings.Items.Where(item => item.Visible))
         {
-            if (string.IsNullOrWhiteSpace(item.SoundFile) || _mutedItems.Contains(item.ValueName))
-            {
-                continue;
-            }
-
-            if (!_statusData.TryGetValue(item.ValueName, out var value) || value == 0)
-            {
-                continue;
-            }
-
-            var path = ResolveSoundPath(item.SoundFile);
-            if (!File.Exists(path))
-            {
-                continue;
-            }
-
-            try
-            {
-                _audioPlaybackService.PlayLooping(item.ValueName, path);
-            }
-            catch
-            {
-                // 알림음 재생 실패 시 다음 폴링에서 다시 시도한다.
-            }
+            PlayItemSoundIfActive(item);
         }
+    }
+
+    private void PlayItemSoundIfActive(MonitoringItem item)
+    {
+        if (!item.Visible ||
+            string.IsNullOrWhiteSpace(item.SoundFile) ||
+            _mutedItems.Contains(item.ValueName))
+        {
+            return;
+        }
+
+        if (!_statusData.TryGetValue(item.ValueName, out var value) || value == 0)
+        {
+            return;
+        }
+
+        var path = ResolveSoundPath(item.SoundFile);
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            _audioPlaybackService.PlayLooping(item.ValueName, path);
+        }
+        catch
+        {
+            // 알림음 재생 실패 시 다음 폴링에서 다시 시도한다.
+        }
+    }
+
+    private void SyncAudioWithSettings()
+    {
+        var configuredKeys = _settings.Items
+            .Select(item => item.ValueName)
+            .ToHashSet(StringComparer.Ordinal);
+        _mutedItems.RemoveWhere(valueName => !configuredKeys.Contains(valueName));
+
+        _audioPlaybackService.StopAll();
+
+        if (string.IsNullOrWhiteSpace(_settings.DataUrl))
+        {
+            return;
+        }
+
+        PlayActiveSounds();
     }
 
     private static string ResolveSoundPath(string soundFile)
@@ -624,6 +651,10 @@ if (hasSound)
         if (!string.IsNullOrWhiteSpace(_settings.DataUrl))
         {
             _pollingTimer.Start();
+        }
+        else
+        {
+            _audioPlaybackService.StopAll();
         }
     }
 
