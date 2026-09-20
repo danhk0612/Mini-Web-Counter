@@ -2,13 +2,16 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>Mini-Web-Counter</AssemblyName>
+    <AssemblyName>Mini-Web-Counter.App</AssemblyName>
     <RootNamespace>MiniWebCounter</RootNamespace>
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <Version>1.1.0</Version>
+    <FileVersion>1.1.0.0</FileVersion>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
