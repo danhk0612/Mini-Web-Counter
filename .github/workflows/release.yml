@@ -2,9 +2,6 @@ name: Build and Release v1.1.0
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 permissions:
   contents: write
@@ -15,7 +12,6 @@ concurrency:
 
 jobs:
   release:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v1.1.0]')
     runs-on: windows-latest
 
     steps:
