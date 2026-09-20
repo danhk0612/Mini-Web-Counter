@@ -6,6 +6,7 @@ public static class StartupService
 {
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "MiniWebCounter";
+    private const string LauncherFileName = "Mini-Web-Counter.exe";
 
     public static void Apply(bool enabled)
     {
@@ -16,7 +17,13 @@ public static class StartupService
 
             if (enabled)
             {
-                var executablePath = Application.ExecutablePath;
+                var appDirectory = Path.GetDirectoryName(Application.ExecutablePath)
+                    ?? AppContext.BaseDirectory;
+                var launcherPath = Path.Combine(appDirectory, LauncherFileName);
+                var executablePath = File.Exists(launcherPath)
+                    ? launcherPath
+                    : Application.ExecutablePath;
+
                 key.SetValue(ValueName, $"\"{executablePath}\"", RegistryValueKind.String);
             }
             else
