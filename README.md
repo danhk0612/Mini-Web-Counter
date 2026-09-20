@@ -48,14 +48,21 @@ URL이 JSON 숫자 값을 반환하기만 하면 필요한 항목을 골라 카�
 
 ## 다운로드 및 실행
 
-GitHub Releases에서 최신 Windows x64 배포본을 받을 수 있습니다.
+GitHub Releases에서 최신 Windows x64 ZIP 배포본을 받은 뒤 원하는 폴더에 압축을 해제합니다.
 
-- `Mini-Web-Counter.exe`: 단일 실행 파일
-- `Mini-Web-Counter-vX.Y.Z-win-x64.zip`: 배포 파일 묶음
+배포 폴더에는 다음 파일이 포함됩니다.
 
-배포본은 Windows 10/11 x64용 self-contained 빌드이므로 대상 PC에 .NET 런타임을 별도로 설치하지 않아도 됩니다.
+- `Mini-Web-Counter.exe`: 실행용 네이티브 런처
+- `Mini-Web-Counter.App.exe`: 실제 WinForms 프로그램
+- `appsettings.json`: 프로그램 설정
 
-처음 실행하면 실행 파일과 같은 폴더에 `appsettings.json`이 생성됩니다. 설정은 트레이 아이콘의 `설정` 메뉴에서 변경합니다.
+실행할 때는 `Mini-Web-Counter.exe`를 사용합니다.
+
+v1.1.0부터 실제 프로그램은 .NET 10 framework-dependent single-file 방식으로 배포됩니다. PC에 Microsoft .NET 10 Desktop Runtime (x64)이 없으면 런처가 이를 감지하고 Microsoft 공식 다운로드 페이지를 열 수 있는 안내창을 표시합니다.
+
+.NET 10 다운로드: https://dotnet.microsoft.com/download/dotnet/10.0
+
+처음 실행하면 같은 폴더의 `appsettings.json`을 사용하며, 설정은 트레이 아이콘의 `설정` 메뉴에서 변경합니다.
 
 > 프로그램이 설정 파일을 실행 파일과 같은 폴더에 저장하므로, 쓰기 권한이 있는 폴더에서 실행하는 것을 권장합니다.
 
@@ -110,7 +117,7 @@ GitHub Releases에서 최신 Windows x64 배포본을 받을 수 있습니다.
 
 - Windows 10/11 x64
 - C# / WinForms
-- .NET 8
+- .NET 10 Desktop Runtime x64
 - NAudio / WASAPI
 
 ## 빌드
@@ -119,18 +126,30 @@ GitHub Releases에서 최신 Windows x64 배포본을 받을 수 있습니다.
 dotnet build .\Mini-Web-Counter.csproj -c Release
 ```
 
-self-contained 단일 EXE 배포 예시:
+실제 앱의 framework-dependent single-file 배포 예시:
 
 ```powershell
 dotnet publish .\Mini-Web-Counter.csproj `
   -c Release `
   -r win-x64 `
-  --self-contained true `
+  --self-contained false `
   -p:PublishSingleFile=true `
   -p:IncludeNativeLibrariesForSelfExtract=true
 ```
 
+정식 GitHub Release는 `.github/workflows/release.yml`에서 실제 앱과 네이티브 런처를 함께 빌드해 ZIP으로 생성합니다.
+
 ## 릴리스
+
+### v1.1.0
+
+- .NET 10으로 대상 프레임워크 변경
+- 실제 앱을 framework-dependent single-file 방식으로 변경
+- .NET 10 Desktop Runtime x64 설치 여부를 확인하는 네이티브 런처 추가
+- 런타임이 없을 때 Microsoft 공식 다운로드 페이지 안내
+- Windows 시작 시 자동 실행이 런처를 통해 시작되도록 변경
+- GitHub Release를 런처, 실제 앱, 설정 파일이 포함된 ZIP 단일 배포본으로 정리
+- 기존 카운터, 트레이, 설정, 오디오 및 알림 기능 유지
 
 ### v1.0.7
 
